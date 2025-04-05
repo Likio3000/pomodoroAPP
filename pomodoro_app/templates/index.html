@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Welcome to Pomodoro Tracker</h1>
+  <p>This is a productivity timer app implementing the Pomodoro technique. Please <a href="{{ url_for('auth.login') }}">log in</a> or <a href="{{ url_for('auth.register') }}">register</a> to get started.</p>
+{% endblock %}

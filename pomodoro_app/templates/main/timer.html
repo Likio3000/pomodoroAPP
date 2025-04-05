@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Start a Pomodoro Session</h2>
+  <div class="timer-setup">
+    <label>Work: <input id="work-minutes" type="number" value="25" min="1"> minutes</label>
+    <label>Break: <input id="break-minutes" type="number" value="5" min="1"> minutes</label>
+    <button id="start-btn" class="btn">Start</button>
+  </div>
+  <div id="timer-display" class="timer-display"></div>
+  <div id="status-message" class="status-message"></div>
+  
+  <!-- Audio element for alarm (ensure alarm.mp3 is in static folder) -->
+  <audio id="alarm-sound" src="{{ url_for('static', filename='alarm.mp3') }}" preload="auto"></audio>
+  
+  <script>
+    let workMinutes = 0;
+    let breakMinutes = 0;
+    let breakSeconds = 0;
+    let timerInterval = null;
+    
+    // Utility to format seconds as MM:SS
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+    
+    function updateDisplay(seconds, phase) {
+      const display = document.getElementById('timer-display');
+      const label = phase === 'work' ? 'Work' : 'Break';
+      display.textContent = label + " Time: " + formatTime(seconds);
+    }
+    
+    function startTimer(duration, phase) {
+      // Clear any existing interval
+      if (timerInterval) clearInterval(timerInterval);
+      let remaining = duration;
+      updateDisplay(remaining, phase);
+      timerInterval = setInterval(function() {
+        remaining--;
+        if (remaining >= 0) {
+          updateDisplay(remaining, phase);
+        }
+        if (remaining < 0) {
+          // Time is up for this phase
+          clearInterval(timerInterval);
+          const alarm = document.getElementById('alarm-sound');
+          if (alarm) alarm.play();  // play alarm sound
+          if (phase === 'work') {
+            // Work period done – notify and automatically start break
+            document.getElementById('status-message').textContent = "Work session complete! Break time begins.";
+            // Start break after a short pause
+            setTimeout(function() {
+              document.getElementById('status-message').textContent = "";
+              startTimer(breakSeconds, 'break');
+            }, 1000);
+          } else {
+            // Break period done – notify session completion
+            document.getElementById('status-message').textContent = "Break over! Pomodoro session completed.";
+            // Send session data to server for logging
+            logSession(workMinutes, breakMinutes);
+          }
+        }
+      }, 1000);
+    }
+    
+    function logSession(work, brk) {
+      fetch("{{ url_for('main.complete_session') }}", {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ work: work, break: brk })
+      }).then(response => {
+        if (!response.ok) {
+          console.error("Failed to log session");
+        }
+      }).catch(err => {
+        console.error("Error logging session:", err);
+      });
+    }
+    
+    // Start button event
+    document.getElementById('start-btn').addEventListener('click', function() {
+      workMinutes = parseInt(document.getElementById('work-minutes').value) || 0;
+      breakMinutes = parseInt(document.getElementById('break-minutes').value) || 0;
+      if (workMinutes <= 0 || breakMinutes <= 0) {
+        alert("Please enter valid durations for work and break.");
+        return;
+      }
+      breakSeconds = breakMinutes * 60;
+      const workSeconds = workMinutes * 60;
+      // Begin the work timer
+      document.getElementById('status-message').textContent = "";  // clear any old messages
+      startTimer(workSeconds, 'work');
+    });
+  </script>
+{% endblock %}

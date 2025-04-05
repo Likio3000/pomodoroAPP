@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Create an Account</h2>
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+      {{ form.name.label }}<br>
+      {{ form.name(class="input") }}
+      {% for error in form.name.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+    <div class="form-group">
+      {{ form.email.label }}<br>
+      {{ form.email(class="input") }}
+      {% for error in form.email.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+    <div class="form-group">
+      {{ form.password.label }}<br>
+      {{ form.password(class="input") }}
+      {% for error in form.password.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+    <div class="form-group">
+      {{ form.confirm.label }}<br>
+      {{ form.confirm(class="input") }}
+      {% for error in form.confirm.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+    {{ form.submit(class="btn") }}
+  </form>
+  <p>Already have an account? <a href="{{ url_for('auth.login') }}">Log in here.</a></p>
+{% endblock %}

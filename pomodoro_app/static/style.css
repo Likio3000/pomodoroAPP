@@ -1,0 +1,120 @@
+/* pomodoro_app/static/style.css */
+
+/* Basic resets and typography */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f9f9f9;
+    color: #333;
+  }
+  h1, h2, h3 {
+    color: #444;
+  }
+  a { color: #007BFF; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  
+  /* Navigation bar */
+  .navbar {
+    background: #343a40;
+    color: #fff;
+    padding: 0.5em 1em;
+  }
+  .navbar .brand {
+    font-weight: bold;
+  }
+  .navbar .nav-links a {
+    color: #fff;
+    margin-right: 1em;
+  }
+  .navbar .nav-links a:last-child {
+    margin-right: 0;
+  }
+  
+  /* Container */
+  .container {
+    max-width: 800px;
+    margin: auto;
+    padding: 1em;
+  }
+  
+  /* Flash messages */
+  .flash-messages .flash {
+    padding: 0.5em;
+    margin-bottom: 1em;
+    border-radius: 4px;
+  }
+  .flash.error { background: #f8d7da; color: #721c24; }
+  .flash.success { background: #d4edda; color: #155724; }
+  .flash.info { background: #cce5ff; color: #004085; }
+  
+  /* Forms */
+  .form-group {
+    margin-bottom: 1em;
+  }
+  .input, .checkbox {
+    padding: 0.4em;
+    font-size: 1em;
+    width: 100%;
+    max-width: 300px;
+    box-sizing: border-box;
+    margin-top: 0.2em;
+  }
+  .btn {
+    padding: 0.5em 1.5em;
+    font-size: 1em;
+    cursor: pointer;
+    background: #007BFF;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+  }
+  .btn:hover {
+    background: #0056b3;
+  }
+  
+  /* Timer page */
+  .timer-setup {
+    margin-bottom: 1em;
+  }
+  .timer-setup label {
+    margin-right: 1em;
+  }
+  .timer-display {
+    font-size: 2em;
+    font-weight: bold;
+    margin: 1em 0;
+  }
+  .status-message {
+    font-size: 1.1em;
+    margin: 0.5em 0;
+    color: #d63384;
+  }
+  
+  /* Sessions table */
+  .sessions-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .sessions-table th, .sessions-table td {
+    border: 1px solid #ddd;
+    padding: 0.5em;
+    text-align: center;
+  }
+  .sessions-table th {
+    background: #e9ecef;
+  }
+  .sessions-table tr:nth-child(even) {
+    background: #fdfdfd;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 600px) {
+    .timer-setup label {
+      display: block;
+      margin-bottom: 0.5em;
+    }
+    .nav-links {
+      margin-top: 0.5em;
+    }
+  }
+  

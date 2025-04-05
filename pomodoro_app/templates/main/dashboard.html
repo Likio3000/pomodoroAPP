@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Dashboard</h2>
+  <p>Welcome, {{ current_user.name }}! Here are your productivity stats:</p>
+  <ul class="stats">
+    <li><strong>Total Focused Time:</strong> {{ total_focus }} minutes</li>
+    <li><strong>Total Break Time:</strong> {{ total_break }} minutes</li>
+    <li><strong>Completed Pomodoro Sessions:</strong> {{ total_sessions }}</li>
+  </ul>
+  
+  <h3>Past Sessions</h3>
+  {% if sessions %}
+    <table class="sessions-table">
+      <tr><th>Date</th><th>Work (min)</th><th>Break (min)</th></tr>
+      {% for sess in sessions %}
+        <tr>
+          <td>{{ sess.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
+          <td>{{ sess.work_duration }}</td>
+          <td>{{ sess.break_duration }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>No sessions recorded yet. <a href="{{ url_for('main.timer') }}">Start your first Pomodoro!</a></p>
+  {% endif %}
+{% endblock %}

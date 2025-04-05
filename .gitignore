@@ -1,0 +1,38 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment folders
+venv/
+ENV/
+env/
+.venv/
+
+# Distribution and packaging
+build/
+dist/
+*.egg-info/
+
+# Installer logs and caches
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test and coverage reports
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+.pytest_cache/
+
+# Flask specific files
+instance/
+.webassets-cache
+
+# SQLite database files
+*.db
+
+# VS Code settings
+.vscode/
