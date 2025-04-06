@@ -23,9 +23,9 @@ def test_dashboard_requires_login(test_client, init_database):
     assert b'Login' in response.data # Should redirect to login page
 
 # Test dashboard shows stats for logged-in user
-def test_dashboard_logged_in(logged_in_user, clean_db): # Use logged_in_user fixture
+def test_dashboard_logged_in(logged_in_user, clean_db, test_app): # Use logged_in_user fixture
     # Add some sessions for this user
-    with clean_db.app.app_context():
+    with test_app.app_context():
         user_id = 1 # Assuming first user created by logged_in_user fixture is ID 1
         sess1 = PomodoroSession(user_id=user_id, work_duration=25, break_duration=5)
         sess2 = PomodoroSession(user_id=user_id, work_duration=50, break_duration=10)
@@ -54,7 +54,7 @@ def test_timer_page_logged_in(logged_in_user):
     assert b'Break: <input id="break-minutes"' in response.data
 
 # Test completing a session (AJAX endpoint)
-def test_complete_session_logged_in(logged_in_user, clean_db):
+def test_complete_session_logged_in(logged_in_user, clean_db, test_app):
     response = logged_in_user.post(url_for('main.complete_session'), json={
         'work': 25,
         'break': 5
@@ -63,7 +63,7 @@ def test_complete_session_logged_in(logged_in_user, clean_db):
     assert response.json == {'status': 'success'}
 
     # Verify data was saved to DB
-    with clean_db.app.app_context():
+    with test_app.app_context():
         sessions = PomodoroSession.query.all()
         assert len(sessions) == 1
         assert sessions[0].user_id == 1 # Assuming logged_in_user is user ID 1
