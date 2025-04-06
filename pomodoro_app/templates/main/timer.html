@@ -1,3 +1,4 @@
+<!-- pomodoro_app/templates/main/timer.html -->
 {% extends "base.html" %}
 {% block content %}
   <h2>Start a Pomodoro Session</h2>
@@ -9,7 +10,7 @@
   <div id="timer-display" class="timer-display"></div>
   <div id="status-message" class="status-message"></div>
   
-  <!-- Audio element for alarm (ensure alarm.mp3 is in static folder) -->
+  <!-- Audio element for alarm -->
   <audio id="alarm-sound" src="{{ url_for('static', filename='alarm.mp3') }}" preload="auto"></audio>
   
   <script>
@@ -18,7 +19,6 @@
     let breakSeconds = 0;
     let timerInterval = null;
     
-    // Utility to format seconds as MM:SS
     function formatTime(seconds) {
       const m = Math.floor(seconds / 60);
       const s = seconds % 60;
@@ -32,7 +32,6 @@
     }
     
     function startTimer(duration, phase) {
-      // Clear any existing interval
       if (timerInterval) clearInterval(timerInterval);
       let remaining = duration;
       updateDisplay(remaining, phase);
@@ -42,22 +41,18 @@
           updateDisplay(remaining, phase);
         }
         if (remaining < 0) {
-          // Time is up for this phase
           clearInterval(timerInterval);
           const alarm = document.getElementById('alarm-sound');
-          if (alarm) alarm.play();  // play alarm sound
+          if (alarm) alarm.play();
           if (phase === 'work') {
-            // Work period done – notify and automatically start break
             document.getElementById('status-message').textContent = "Work session complete! Break time begins.";
-            // Start break after a short pause
             setTimeout(function() {
               document.getElementById('status-message').textContent = "";
               startTimer(breakSeconds, 'break');
             }, 1000);
           } else {
-            // Break period done – notify session completion
             document.getElementById('status-message').textContent = "Break over! Pomodoro session completed.";
-            // Send session data to server for logging
+            // Log the session and clear the active timer flag
             logSession(workMinutes, breakMinutes);
           }
         }
@@ -78,7 +73,6 @@
       });
     }
     
-    // Start button event
     document.getElementById('start-btn').addEventListener('click', function() {
       workMinutes = parseInt(document.getElementById('work-minutes').value) || 0;
       breakMinutes = parseInt(document.getElementById('break-minutes').value) || 0;
@@ -88,9 +82,17 @@
       }
       breakSeconds = breakMinutes * 60;
       const workSeconds = workMinutes * 60;
-      // Begin the work timer
-      document.getElementById('status-message').textContent = "";  // clear any old messages
-      startTimer(workSeconds, 'work');
+      // Set the active timer flag by calling the new endpoint
+      fetch("{{ url_for('main.start_timer') }}", { method: 'POST' })
+        .then(response => {
+          if (response.ok) {
+            document.getElementById('status-message').textContent = "";
+            startTimer(workSeconds, 'work');
+          } else {
+            console.error("Failed to set active timer flag");
+          }
+        })
+        .catch(err => console.error("Error setting active timer flag:", err));
     });
   </script>
 {% endblock %}

@@ -3,9 +3,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <!-- Responsive design meta -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pomodoro App</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> <!-- Link to CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <nav class="navbar">
@@ -13,8 +13,8 @@
       <span class="brand">Pomodoro Timer</span>
       <div class="nav-links">
         {% if current_user.is_authenticated %}
-          <a href="{{ url_for('main.timer') }}">Timer</a>
-          <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
+          <a href="{{ url_for('main.timer') }}" {% if session.get('active_timer') %}target="_blank"{% endif %}>Timer</a>
+          <a href="{{ url_for('main.dashboard') }}" {% if session.get('active_timer') %}target="_blank"{% endif %}>Dashboard</a>
           <a href="{{ url_for('auth.logout') }}">Logout</a>
         {% else %}
           <a href="{{ url_for('auth.login') }}">Login</a>
