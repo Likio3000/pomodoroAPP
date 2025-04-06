@@ -42,6 +42,7 @@ def clean_db(test_app, init_database):
 @pytest.fixture(scope='function')
 def logged_in_user(test_app, test_client, clean_db):
     from werkzeug.security import generate_password_hash
+    from pomodoro_app.models import User
     hashed_pw = generate_password_hash('testpassword', method='pbkdf2:sha256')
     user = User(email='test@example.com', name='Test User', password=hashed_pw)
 

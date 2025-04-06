@@ -57,14 +57,20 @@ def test_timer_page_logged_in(logged_in_user):
 
 # Test completing a session (AJAX endpoint)
 def test_complete_session_logged_in(logged_in_user, clean_db, test_app):
+    # Clear any existing sessions for the user
+    with test_app.app_context():
+        from pomodoro_app.models import PomodoroSession
+        PomodoroSession.query.delete()
+        db.session.commit()
+    
     response = logged_in_user.post(url_for('main.complete_session'), json={
         'work': 25,
         'break': 5
     })
     assert response.status_code == 200
     assert response.json == {'status': 'success'}
-
-    # Verify data was saved to DB
+    
+    # Verify that only one session exists
     with test_app.app_context():
         sessions = PomodoroSession.query.all()
         assert len(sessions) == 1
