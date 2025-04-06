@@ -1,6 +1,8 @@
 # tests/test_main.py
 from flask import url_for
 from pomodoro_app.models import PomodoroSession # Import if needed
+from pomodoro_app import db
+
 
 # Test index page for anonymous user
 def test_index_anonymous(test_client, init_database):

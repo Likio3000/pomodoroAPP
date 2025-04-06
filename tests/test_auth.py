@@ -74,7 +74,7 @@ def test_login_incorrect_password(test_client, init_database):
         password='wrongpassword'
     ), follow_redirects=True)
     assert response.status_code == 200
-    assert b'Invalid email or password.' in response.data # Check flash message
+    assert b'Invalid email or password. Please try again.' in response.data
     assert b'Login' in response.data # Stay on login page
 
 # Test logout
