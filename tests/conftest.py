@@ -2,7 +2,7 @@
 import pytest
 import os
 from pomodoro_app import create_app, db
-from pomodoro_app.models import User # Import models if needed for setup
+from pomodoro_app.models import User
 
 # Define a test configuration class
 class TestConfig:
