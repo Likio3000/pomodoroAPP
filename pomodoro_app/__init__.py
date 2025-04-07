@@ -3,11 +3,19 @@ import os  # <-- Import the os module
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Initialize extensions (to be used later in factory)
 db = SQLAlchemy()
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
+
+# Set up Flask-Limiter
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]  # You can adjust these defaults as needed
+)
 
 def create_app(config_object=None): # Optional: Pass a config object for testing
     app = Flask(__name__, instance_relative_config=True) # Consider using instance folder
@@ -37,6 +45,7 @@ def create_app(config_object=None): # Optional: Pass a config object for testing
     # Initialize extensions with app
     db.init_app(app)
     login_manager.init_app(app)
+    limiter.init_app(app) # Attach the limiter to your app
 
     # Import models here so that they are registered with SQLAlchemy
     from pomodoro_app.models import User

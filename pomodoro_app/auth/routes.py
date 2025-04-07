@@ -3,13 +3,14 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from pomodoro_app import db
+from pomodoro_app import db, limiter
 from pomodoro_app.models import User
 from pomodoro_app.forms import RegistrationForm, LoginForm
 
 auth = Blueprint('auth', __name__)
 
 @auth.route('/register', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def register():
     if current_user.is_authenticated:
         # If already logged in, skip registration page
@@ -31,6 +32,7 @@ def register():
     return render_template('auth/register.html', form=form)
 
 @auth.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def login():
     if current_user.is_authenticated:
         # If already logged in, go to dashboard

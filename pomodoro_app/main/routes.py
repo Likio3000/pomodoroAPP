@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session
 from flask_login import login_required, current_user
 
-from pomodoro_app import db
+from pomodoro_app import db, limiter
 from pomodoro_app.models import PomodoroSession
 
 main = Blueprint('main', __name__)
@@ -20,6 +20,7 @@ def timer():
 
 @main.route('/start_timer', methods=['POST'])
 @login_required
+@limiter.limit("10 per minute")
 def start_timer():
     # Set the active timer flag when a Pomodoro session is started
     session['active_timer'] = True
@@ -27,6 +28,7 @@ def start_timer():
 
 @main.route('/complete_session', methods=['POST'])
 @login_required
+@limiter.limit("10 per minute")
 def complete_session():
     data = request.get_json()
     work_minutes = data.get('work')
@@ -41,6 +43,7 @@ def complete_session():
 
 @main.route('/dashboard')
 @login_required
+@limiter.limit("10 per minute")
 def dashboard():
     sessions = PomodoroSession.query.filter_by(user_id=current_user.id).order_by(PomodoroSession.timestamp.desc()).all()
     total_focus = sum(sess.work_duration for sess in sessions)
