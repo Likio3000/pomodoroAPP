@@ -45,7 +45,11 @@ def create_app(config_object=None): # Optional: Pass a config object for testing
     # Initialize extensions with app
     db.init_app(app)
     login_manager.init_app(app)
-    limiter.init_app(app) 
+    limiter.init_app(app)
+
+    # Disable rate limiting if configured (useful for general tests)
+    if app.config.get('TESTING', False) and app.config.get('DISABLE_RATE_LIMIT', False):
+        limiter.enabled = False 
 
     # Import models here so that they are registered with SQLAlchemy
     from pomodoro_app.models import User

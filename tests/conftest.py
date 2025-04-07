@@ -13,6 +13,10 @@ class TestConfig:
     LOGIN_DISABLED = False # Ensure login is enabled unless specifically testing disabled login
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SERVER_NAME = 'localhost'  # Added for URL building in tests
+    DISABLE_RATE_LIMIT = True  # Disable rate limiting by default for fast, isolated tests
+
+class RateLimitTestConfig(TestConfig):
+    DISABLE_RATE_LIMIT = False  # Enable rate limiting for specific tests
 
 @pytest.fixture(scope='module')
 def test_app():
