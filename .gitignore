@@ -33,6 +33,7 @@ instance/
 
 # SQLite database files
 *.db
++*.db-*
 
 # VS Code settings
 .vscode/
