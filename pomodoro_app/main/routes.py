@@ -8,6 +8,7 @@ from pomodoro_app.models import PomodoroSession
 main = Blueprint('main', __name__)
 
 @main.route('/')
+@limiter.limit("10 per minute")
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))

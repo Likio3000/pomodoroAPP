@@ -82,17 +82,22 @@
       }
       breakSeconds = breakMinutes * 60;
       const workSeconds = workMinutes * 60;
-      // Set the active timer flag by calling the new endpoint
-      fetch("{{ url_for('main.start_timer') }}", { method: 'POST' })
-        .then(response => {
-          if (response.ok) {
-            document.getElementById('status-message').textContent = "";
-            startTimer(workSeconds, 'work');
-          } else {
-            console.error("Failed to set active timer flag");
-          }
-        })
-        .catch(err => console.error("Error setting active timer flag:", err));
+      // Set the active timer flag by calling the new endpoint with an Accept header for HTML
+      fetch("{{ url_for('main.start_timer') }}", { 
+        method: 'POST',
+        headers: { 'Accept': 'text/html' }
+      })
+      .then(response => {
+        if (response.status === 429) {
+          alert("Too many requests. Please try again later.");
+        } else if (response.ok) {
+          document.getElementById('status-message').textContent = "";
+          startTimer(workSeconds, 'work');
+        } else {
+          console.error("Failed to set active timer flag");
+        }
+      })
+      .catch(err => console.error("Error setting active timer flag:", err));
     });
   </script>
 {% endblock %}

@@ -1,6 +1,6 @@
 # pomodoro_app/__init__.py
 import os  # <-- Import the os module
-from flask import Flask
+from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_limiter import Limiter
@@ -45,7 +45,7 @@ def create_app(config_object=None): # Optional: Pass a config object for testing
     # Initialize extensions with app
     db.init_app(app)
     login_manager.init_app(app)
-    limiter.init_app(app) # Attach the limiter to your app
+    limiter.init_app(app) 
 
     # Import models here so that they are registered with SQLAlchemy
     from pomodoro_app.models import User
@@ -60,6 +60,15 @@ def create_app(config_object=None): # Optional: Pass a config object for testing
     from pomodoro_app.main.routes import main as main_blueprint
     app.register_blueprint(auth_blueprint, url_prefix='/auth') # Add prefixes for clarity
     app.register_blueprint(main_blueprint, url_prefix='/') # Main routes usually at root
+
+        # Custom error handler for rate limiting (429 error)
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        # If the request prefers JSON, send a JSON response:
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify(error="Too many requests. Please try again later."), 429
+        # Otherwise, render a custom HTML page:
+        return render_template("429.html", error=e.description), 429
 
     # Create database tables if not already created (can be moved to migration script)
     with app.app_context():
