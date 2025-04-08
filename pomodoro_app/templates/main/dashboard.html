@@ -20,26 +20,25 @@
 
   <h3>Past Sessions</h3>
   {% if sessions %}
-    <table class="sessions-table">
-      <thead> {# Added thead for structure #}
-        <tr><th>Date & Time (Your Local)</th><th>Work (min)</th><th>Break (min)</th></tr>
-      </thead>
-      <tbody> {# Added tbody for structure #}
-        {% for sess in sessions %}
-          <tr>
-            {# Pass the UTC timestamp in ISO format using a data attribute
-               Because sess.timestamp is now UTC-aware (due to the fix in routes.py),
-               .isoformat() will include the +00:00 offset. #}
-            <td class="local-timestamp" data-timestamp="{{ sess.timestamp.isoformat() if sess.timestamp else '' }}">
-              {# Initial display (optional): Keep ISO as fallback or show "Loading..." #}
-               {% if sess.timestamp %}{{ sess.timestamp.isoformat() }}{% else %}N/A{% endif %}
-            </td>
-            <td>{{ sess.work_duration }}</td>
-            <td>{{ sess.break_duration }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    {# ADD THIS WRAPPER DIV #}
+    <div class="sessions-table-container">
+      <table class="sessions-table">
+        <thead> {# Added thead for structure #}
+          <tr><th>Date & Time (Your Local)</th><th>Work (min)</th><th>Break (min)</th></tr>
+        </thead>
+        <tbody> {# Added tbody for structure #}
+          {% for sess in sessions %}
+            <tr>
+              <td class="local-timestamp" data-timestamp="{{ sess.timestamp.isoformat() if sess.timestamp else '' }}">
+                 {% if sess.timestamp %}{{ sess.timestamp.isoformat() }}{% else %}N/A{% endif %}
+              </td>
+              <td>{{ sess.work_duration }}</td>
+              <td>{{ sess.break_duration }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div> {# END OF WRAPPER DIV #}
   {% else %}
     <p>No sessions recorded yet. <a href="{{ url_for('main.timer') }}">Start your first Pomodoro!</a></p>
   {% endif %}
