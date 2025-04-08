@@ -2,11 +2,21 @@
 {% block content %}
   <h2>Dashboard</h2>
   <p>Welcome, {{ current_user.name }}! Here are your productivity stats:</p>
-  <ul class="stats">
-    <li><strong>Total Focused Time:</strong> {{ total_focus }} minutes</li>
-    <li><strong>Total Break Time:</strong> {{ total_break }} minutes</li>
-    <li><strong>Completed Pomodoro Sessions:</strong> {{ total_sessions }}</li>
-  </ul>
+
+  {# Container to hold data for JS #}
+  <div id="dashboard-data"
+       data-total-focus="{{ total_focus }}"
+       data-total-break="{{ total_break }}"
+       data-total-sessions="{{ total_sessions }}">
+
+    <ul class="stats">
+      <li><strong>Total Focused Time:</strong> {{ total_focus }} minutes</li>
+      <li><strong>Total Break Time:</strong> {{ total_break }} minutes</li>
+      <li><strong>Completed Pomodoro Sessions:</strong> {{ total_sessions }}</li>
+    </ul>
+
+  </div> {# End of dashboard-data #}
+
 
   <h3>Past Sessions</h3>
   {% if sessions %}
@@ -20,9 +30,9 @@
             {# Pass the UTC timestamp in ISO format using a data attribute
                Because sess.timestamp is now UTC-aware (due to the fix in routes.py),
                .isoformat() will include the +00:00 offset. #}
-            <td class="local-timestamp" data-timestamp="{{ sess.timestamp.isoformat() }}">
+            <td class="local-timestamp" data-timestamp="{{ sess.timestamp.isoformat() if sess.timestamp else '' }}">
               {# Initial display (optional): Keep ISO as fallback or show "Loading..." #}
-              {{ sess.timestamp.isoformat() }}
+               {% if sess.timestamp %}{{ sess.timestamp.isoformat() }}{% else %}N/A{% endif %}
             </td>
             <td>{{ sess.work_duration }}</td>
             <td>{{ sess.break_duration }}</td>
@@ -34,13 +44,35 @@
     <p>No sessions recorded yet. <a href="{{ url_for('main.timer') }}">Start your first Pomodoro!</a></p>
   {% endif %}
 
-  {# This JavaScript block remains unchanged. It relies on receiving
-     a valid ISO 8601 string WITH timezone offset in data-timestamp. #}
+  {# +++ NEW Chat Agent Section +++ #}
+  {% if chat_enabled %}
+  <div class="chat-agent-section">
+    <h3>Productivity Assistant</h3>
+    <p>Ask questions about your stats or get productivity tips!</p>
+    <div id="chat-log" class="chat-log">
+      {# Chat messages will appear here #}
+      <div class="message ai">Hello {{ current_user.name }}! How can I help you analyze your Pomodoro stats or improve your focus today?</div>
+    </div>
+    <div class="chat-input-area">
+      <input type="text" id="chat-input" placeholder="Type your message..." aria-label="Chat message input">
+      <button id="chat-send-btn" class="btn">Send</button>
+    </div>
+    <div id="chat-status" class="chat-status" aria-live="polite"></div> {# For loading/error messages #}
+  </div>
+  {% else %}
+  <div class="chat-agent-section disabled">
+      <h3>Productivity Assistant</h3>
+      <p><i>Chat feature is currently unavailable. Please check server configuration (OpenAI key).</i></p>
+  </div>
+  {% endif %}
+  {# +++ End Chat Agent Section +++ #}
+
+
+  {# Keep existing timestamp formatting script #}
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Find all elements that need local time formatting
+      // --- Timestamp Formatting ---
       const timestampCells = document.querySelectorAll('.local-timestamp');
-
       timestampCells.forEach(cell => {
         const isoTimestamp = cell.getAttribute('data-timestamp');
         if (isoTimestamp) {
@@ -55,7 +87,6 @@
             }
 
             // Format the date using the user's locale settings
-            // You can customize the options for toLocaleString
             const options = {
               year: 'numeric', month: 'short', day: 'numeric',
               hour: 'numeric', minute: '2-digit', // hh:mm format
@@ -67,14 +98,134 @@
           } catch (e) {
             console.error("Error formatting date:", isoTimestamp, e);
             // Keep the original ISO timestamp or show an error message in the cell
-             cell.textContent = isoTimestamp + " (Error)"; // Indicate error
+             cell.textContent = isoTimestamp + " (Error formatting)"; // Indicate error
           }
-        } else {
+        } else if (cell.textContent.trim() !== "N/A") { // Only update if not already N/A
             // Handle cases where data-timestamp might be missing or empty
-            cell.textContent = "N/A";
+             cell.textContent = "N/A";
         }
       });
-    });
+
+      {# +++ NEW Chat Agent JavaScript +++ #}
+      const chatEnabled = {{ chat_enabled | tojson }}; // Get flag from Flask
+
+      if (chatEnabled) {
+          const chatLog = document.getElementById('chat-log');
+          const chatInput = document.getElementById('chat-input');
+          const chatSendBtn = document.getElementById('chat-send-btn');
+          const chatStatus = document.getElementById('chat-status');
+          const dashboardDataDiv = document.getElementById('dashboard-data');
+
+          // Check if elements exist before adding listeners
+          if (!chatLog || !chatInput || !chatSendBtn || !chatStatus || !dashboardDataDiv) {
+              console.error("Chat UI elements not found. Chat functionality may be broken.");
+              return; // Stop script if essential elements are missing
+          }
+
+
+          function addChatMessage(sender, message) {
+              const messageDiv = document.createElement('div');
+              messageDiv.classList.add('message', sender); // 'user' or 'ai'
+              // Basic sanitization: Create a text node to prevent HTML injection
+              const textNode = document.createTextNode(message);
+              messageDiv.appendChild(textNode);
+
+              chatLog.appendChild(messageDiv);
+              // Scroll to the bottom smoothly
+              chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: 'smooth' });
+          }
+
+          async function sendChatMessage() {
+              const userPrompt = chatInput.value.trim();
+              if (!userPrompt) return; // Do nothing if input is empty
+
+              // Disable input while processing
+              chatInput.disabled = true;
+              chatSendBtn.disabled = true;
+              chatStatus.textContent = 'Thinking...';
+              addChatMessage('user', userPrompt);
+              chatInput.value = ''; // Clear input field immediately
+
+              // --- Get Dashboard Data ---
+              // Ensure dataset properties exist, provide defaults
+              const dashboardData = {
+                  total_focus: dashboardDataDiv.dataset.totalFocus || '0',
+                  total_break: dashboardDataDiv.dataset.totalBreak || '0',
+                  total_sessions: dashboardDataDiv.dataset.totalSessions || '0'
+              };
+              // -------------------------
+
+              try {
+                  const response = await fetch("{{ url_for('main.api_chat') }}", {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json',
+                          'Accept': 'application/json' // Signal we prefer JSON response
+                      },
+                      body: JSON.stringify({
+                          prompt: userPrompt,
+                          dashboard_data: dashboardData
+                      })
+                  });
+
+                  // Re-enable inputs once response starts processing (even if error)
+                  chatInput.disabled = false;
+                  chatSendBtn.disabled = false;
+                  chatStatus.textContent = ''; // Clear status
+
+                  if (!response.ok) {
+                      let errorMsg = `HTTP error! Status: ${response.status}`;
+                      try {
+                           // Try to parse specific error from JSON response body
+                           const errorData = await response.json();
+                           errorMsg = errorData.error || errorMsg; // Use server's error message if available
+                      } catch (e) {
+                           // JSON parsing failed, stick with the HTTP status error
+                           console.warn("Could not parse error response JSON.");
+                      }
+                      throw new Error(errorMsg); // Throw error to be caught below
+                  }
+
+                  const data = await response.json();
+                  if (data.response) {
+                      addChatMessage('ai', data.response);
+                  } else if (data.error) {
+                       // Handle errors explicitly sent in JSON structure even with 200 OK (less common)
+                       console.error("API returned error in JSON:", data.error);
+                       addChatMessage('ai', `Sorry, I encountered an error: ${data.error}`);
+                       chatStatus.textContent = 'Error occurred.';
+                  } else {
+                      // Response OK but no 'response' field?
+                      console.error("Unexpected response format:", data);
+                      addChatMessage('ai', `Sorry, I received an unexpected response from the server.`);
+                      chatStatus.textContent = 'Error occurred.';
+                  }
+
+              } catch (error) {
+                  console.error("Chat API call failed:", error);
+                  addChatMessage('ai', `Sorry, I couldn't connect or process your request: ${error.message}`);
+                  // Ensure inputs are re-enabled in case of fetch/network error
+                  chatInput.disabled = false;
+                  chatSendBtn.disabled = false;
+                  chatStatus.textContent = 'Connection error.';
+              } finally {
+                   chatInput.focus(); // Put focus back to input field for convenience
+              }
+          }
+
+          // Event Listeners
+          chatSendBtn.addEventListener('click', sendChatMessage);
+
+          chatInput.addEventListener('keypress', function(event) {
+              // Send message on Enter key press, unless Shift+Enter is used (for potential multi-line input later)
+              if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault(); // Prevent default behavior (like form submission)
+                  sendChatMessage();
+              }
+          });
+      } // end if (chatEnabled)
+
+    }); // end DOMContentLoaded
   </script>
 
 {% endblock %}

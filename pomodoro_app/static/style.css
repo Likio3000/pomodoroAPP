@@ -2,120 +2,224 @@
 
 /* Basic resets and typography */
 body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f9f9f9;
-    color: #333;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f9f9f9;
+  color: #333;
+}
+h1, h2, h3 {
+  color: #444;
+}
+a { color: #007BFF; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Navigation bar */
+.navbar {
+  background: #343a40;
+  color: #fff;
+  padding: 0.5em 1em;
+}
+.navbar .brand {
+  font-weight: bold;
+}
+.navbar .nav-links a {
+  color: #76c2f1;
+  /* color: #fff; */
+  margin-right: 1em;
+}
+.navbar .nav-links a:last-child {
+  margin-right: 0;
+}
+
+/* Container */
+.container {
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+}
+
+/* Flash messages */
+.flash-messages .flash {
+  padding: 0.5em;
+  margin-bottom: 1em;
+  border-radius: 4px;
+}
+.flash.error { background: #f8d7da; color: #721c24; }
+.flash.success { background: #d4edda; color: #155724; }
+.flash.info { background: #cce5ff; color: #004085; }
+
+/* Forms */
+.form-group {
+  margin-bottom: 1em;
+}
+.input, .checkbox {
+  padding: 0.4em;
+  font-size: 1em;
+  width: 100%;
+  max-width: 300px;
+  box-sizing: border-box;
+  margin-top: 0.2em;
+}
+.btn {
+  padding: 0.5em 1.5em;
+  font-size: 1em;
+  cursor: pointer;
+  background: #007BFF;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  transition: background-color 0.2s ease; /* Add smooth hover transition */
+}
+.btn:hover {
+  background: #0056b3;
+}
+.btn:disabled { /* Style for disabled buttons */
+    background: #cccccc;
+    cursor: not-allowed;
+}
+
+
+/* Timer page */
+.timer-setup {
+  margin-bottom: 1em;
+}
+.timer-setup label {
+  margin-right: 1em;
+}
+.timer-display {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 1em 0;
+}
+.status-message {
+  font-size: 1.1em;
+  margin: 0.5em 0;
+  color: #d63384;
+}
+
+/* Dashboard Stats & Sessions table */
+.stats {
+  list-style: none;
+  padding-left: 0;
+}
+.stats li {
+  margin-bottom: 0.5em;
+}
+
+.sessions-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1em; /* Space above table */
+}
+.sessions-table th, .sessions-table td {
+  border: 1px solid #ddd;
+  padding: 0.5em;
+  text-align: center;
+}
+.sessions-table th {
+  background: #e9ecef;
+}
+.sessions-table tr:nth-child(even) {
+  background: #fdfdfd;
+}
+
+/* Chat Agent Styles */
+.chat-agent-section {
+  margin-top: 2em;
+  padding: 1em;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  border-radius: 5px;
+}
+
+.chat-agent-section.disabled p {
+    color: #888;
+    font-style: italic;
+}
+
+.chat-log {
+  height: 250px; /* Adjust height as needed */
+  overflow-y: auto;
+  border: 1px solid #eee;
+  padding: 0.5em;
+  margin-bottom: 1em;
+  background-color: #f8f9fa; /* Slightly off-white background */
+  border-radius: 3px;
+}
+
+.chat-log .message {
+  margin-bottom: 0.75em;
+  padding: 0.5em 1em; /* Slightly more padding */
+  border-radius: 18px; /* More rounded bubbles */
+  max-width: 85%; /* Slightly wider max width */
+  line-height: 1.4;
+  word-wrap: break-word; /* Ensure long words break */
+  clear: both; /* Prevent floating issues */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Subtle shadow */
+}
+
+.chat-log .message.user {
+  background-color: #007bff;
+  color: white;
+  margin-left: auto; /* Align user messages to the right */
+  float: right; /* Use float for alignment */
+  border-bottom-right-radius: 5px; /* Less rounded corner */
+  /* text-align: right; -- Not needed with float */
+}
+
+.chat-log .message.ai {
+  background-color: #e9ecef;
+  color: #333;
+  margin-right: auto; /* Align AI messages to the left */
+  float: left; /* Use float for alignment */
+  border-bottom-left-radius: 5px; /* Less rounded corner */
+  /* text-align: left; -- Not needed with float */
+}
+
+
+.chat-input-area {
+  display: flex;
+  gap: 0.5em;
+  margin-top: 1em; /* Space above input */
+}
+
+#chat-input {
+  flex-grow: 1; /* Take remaining space */
+  padding: 0.6em; /* Slightly larger padding */
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 1em;
+}
+ #chat-input:disabled {
+      background-color: #e9ecef; /* Indicate disabled state */
   }
-  h1, h2, h3 {
-    color: #444;
-  }
-  a { color: #007BFF; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  
-  /* Navigation bar */
-  .navbar {
-    background: #343a40;
-    color: #fff;
-    padding: 0.5em 1em;
-  }
-  .navbar .brand {
-    font-weight: bold;
-  }
-  .navbar .nav-links a {
-    color: #76c2f1;
-    /* color: #fff; */
-    margin-right: 1em;
-  }
-  .navbar .nav-links a:last-child {
-    margin-right: 0;
-  }
-  
-  /* Container */
-  .container {
-    max-width: 800px;
-    margin: auto;
-    padding: 1em;
-  }
-  
-  /* Flash messages */
-  .flash-messages .flash {
-    padding: 0.5em;
-    margin-bottom: 1em;
-    border-radius: 4px;
-  }
-  .flash.error { background: #f8d7da; color: #721c24; }
-  .flash.success { background: #d4edda; color: #155724; }
-  .flash.info { background: #cce5ff; color: #004085; }
-  
-  /* Forms */
-  .form-group {
-    margin-bottom: 1em;
-  }
-  .input, .checkbox {
-    padding: 0.4em;
-    font-size: 1em;
-    width: 100%;
-    max-width: 300px;
-    box-sizing: border-box;
-    margin-top: 0.2em;
-  }
-  .btn {
-    padding: 0.5em 1.5em;
-    font-size: 1em;
-    cursor: pointer;
-    background: #007BFF;
-    color: #fff;
-    border: none;
-    border-radius: 3px;
-  }
-  .btn:hover {
-    background: #0056b3;
-  }
-  
-  /* Timer page */
-  .timer-setup {
-    margin-bottom: 1em;
-  }
+
+
+#chat-send-btn {
+    flex-shrink: 0; /* Prevent button from shrinking */
+}
+
+.chat-status {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 0.5em;
+    min-height: 1.2em; /* Prevent layout shift when text appears/disappears */
+}
+
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
   .timer-setup label {
-    margin-right: 1em;
+    display: block;
+    margin-bottom: 0.5em;
   }
-  .timer-display {
-    font-size: 2em;
-    font-weight: bold;
-    margin: 1em 0;
+  .nav-links {
+    margin-top: 0.5em;
   }
-  .status-message {
-    font-size: 1.1em;
-    margin: 0.5em 0;
-    color: #d63384;
+  .chat-log .message {
+      max-width: 90%; /* Allow slightly wider bubbles on mobile */
   }
-  
-  /* Sessions table */
-  .sessions-table {
-    width: 100%;
-    border-collapse: collapse;
+  .container {
+      padding: 0.5em; /* Reduce padding on small screens */
   }
-  .sessions-table th, .sessions-table td {
-    border: 1px solid #ddd;
-    padding: 0.5em;
-    text-align: center;
-  }
-  .sessions-table th {
-    background: #e9ecef;
-  }
-  .sessions-table tr:nth-child(even) {
-    background: #fdfdfd;
-  }
-  
-  /* Responsive adjustments */
-  @media (max-width: 600px) {
-    .timer-setup label {
-      display: block;
-      margin-bottom: 0.5em;
-    }
-    .nav-links {
-      margin-top: 0.5em;
-    }
-  }
-  
+}
