@@ -23,7 +23,6 @@ ordered-set==4.1.0
 packaging==24.2
 pathspec==0.12.1
 pluggy==1.5.0
--e git+https://github.com/Likio3000/pomodoroAPP.git@625433b8ce74b5a20c92148eee4541c83a2ff852#egg=pomodoro_app
 Pygments==2.19.1
 pyperclip==1.9.0
 pytest==8.3.5
