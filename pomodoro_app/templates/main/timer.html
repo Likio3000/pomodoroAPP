@@ -37,6 +37,7 @@
         let intervalId = null;
         let remainingSeconds = 0;
         let phase = 'idle'; // 'idle', 'work', 'break', 'paused'
+        let prePausePhase = null; // Stores the phase ('work' or 'break') before pausing
         let workDurationMinutes = 25;
         let breakDurationMinutes = 5;
 
@@ -46,28 +47,37 @@
         // --- Core Timer Logic ---
 
         function formatTime(seconds) {
-            const m = Math.floor(seconds / 60);
-            const s = seconds % 60;
+            // Ensure seconds is a non-negative number
+            const safeSeconds = Math.max(0, Math.floor(seconds));
+            const m = Math.floor(safeSeconds / 60);
+            const s = safeSeconds % 60;
             return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
         }
 
         function updateDisplay() {
+            // Determine the label based on the *actual* running/paused state
+            let displayPhase = phase;
+            if (phase === 'paused' && prePausePhase) {
+                displayPhase = prePausePhase; // Show 'Work' or 'Break' even when paused
+            }
+
             let phaseLabel = '';
-            switch(phase) {
+            switch(displayPhase) { // Use displayPhase for label
                 case 'work': phaseLabel = 'Work'; break;
                 case 'break': phaseLabel = 'Break'; break;
-                case 'paused': phaseLabel = 'Paused'; break;
+                case 'paused': phaseLabel = 'Paused'; break; // Fallback if prePausePhase is null
                 default: phaseLabel = 'Idle'; break;
             }
             timerDisplay.textContent = formatTime(remainingSeconds);
-            document.title = `${formatTime(remainingSeconds)} - ${phaseLabel} - Pomodoro`; // Update page title
-            // Optionally update status message here too if needed
+            // Add '(Paused)' to title if paused
+            const titleSuffix = (phase === 'paused') ? ' (Paused)' : '';
+            document.title = `${formatTime(remainingSeconds)} - ${phaseLabel}${titleSuffix} - Pomodoro`;
         }
 
         function playAlarm() {
             if (alarmSound) {
                 alarmSound.currentTime = 0; // Rewind to start
-                alarmSound.play().catch(e => console.error("Audio play failed:", e)); // Play and catch potential errors
+                alarmSound.play().catch(e => console.error("Audio play failed:", e));
             }
         }
 
@@ -78,46 +88,62 @@
                 saveState(); // Save state every second
             }
 
+            // Check for completion *after* potential decrement
+            // Use <= 0 check for robustness
             if (remainingSeconds <= 0) {
-                handlePhaseCompletion();
+                // Ensure we only handle completion once per phase end
+                if (intervalId && (phase === 'work' || phase === 'break')) {
+                    handlePhaseCompletion();
+                }
             }
         }
 
         function startCountdown() {
             if (intervalId) clearInterval(intervalId); // Clear any existing interval
-            if (phase !== 'paused') { // Set phase if not resuming from pause
-                 phase = (phase === 'idle' || phase === 'break') ? 'work' : 'break';
-            } else {
-                 // Keep the phase from paused state
-            }
 
-            if (phase === 'work' && remainingSeconds === 0) { // Initial start
-                 remainingSeconds = workDurationMinutes * 60;
-            } else if (phase === 'break' && remainingSeconds === 0) { // Starting break
-                 remainingSeconds = breakDurationMinutes * 60;
-            }
-            // If resuming from pause, remainingSeconds is already set
+            // Determine the correct running phase when starting/resuming
+            let runningPhase = phase;
+            if (phase === 'idle') { // Starting fresh work session
+                runningPhase = 'work';
+            } else if (phase === 'paused') { // Resuming from pause
+                runningPhase = prePausePhase || 'work'; // Use stored pre-pause phase, default to work if missing
+            } // If phase is already 'work' or 'break' (e.g., called by handlePhaseCompletion), keep it.
 
-            updateDisplay();
-            saveState();
-            intervalId = setInterval(tick, 1000);
+            phase = runningPhase; // Set the active running phase
+
+            // Set remaining seconds only if starting a phase fresh from 0
+            // This ensures resuming keeps the correct remaining time
+            if (remainingSeconds <= 0) {
+                 if (phase === 'work') {
+                    remainingSeconds = workDurationMinutes * 60;
+                 } else if (phase === 'break') {
+                    remainingSeconds = breakDurationMinutes * 60;
+                 }
+            }
+             // If resuming from pause, remainingSeconds should already hold the correct value
+
+            prePausePhase = null; // Clear pre-pause state once running
+
+            updateDisplay(); // Update display immediately
+            saveState(); // Save state *after* phase and seconds are set
+            intervalId = setInterval(tick, 1000); // Start ticking
             updateButtonStates(true); // Timer is running
-            statusMessage.textContent = `${phase === 'work' ? 'Work' : 'Break'} session started.`;
+            statusMessage.textContent = `${phase === 'work' ? 'Work' : 'Break'} session started/resumed.`;
         }
 
         function pauseCountdown() {
-            if (intervalId) {
-                clearInterval(intervalId);
-                intervalId = null;
+            if (intervalId && phase !== 'paused') { // Only pause if running
+                stopCountdown(); // Use helper to clear interval
+                prePausePhase = phase; // *** Store the phase before pausing ***
                 phase = 'paused';
+                updateDisplay(); // *** Update display immediately after setting paused state ***
                 saveState();
                 updateButtonStates(false); // Timer is paused/stopped
                 statusMessage.textContent = `Timer paused.`;
-                document.title = "Paused - Pomodoro";
             }
         }
 
-        function stopCountdown() {
+        function stopCountdown() { // Helper to just stop the interval
             if (intervalId) {
                 clearInterval(intervalId);
                 intervalId = null;
@@ -127,47 +153,60 @@
          function resetTimer(notifyServer = false) {
             stopCountdown();
             phase = 'idle';
+            prePausePhase = null; // Clear pre-pause state
             remainingSeconds = 0; // Reset time
-            workDurationMinutes = parseInt(workInput.value) || 25; // Get current input value
+            // Use current input values as defaults for next start
+            workDurationMinutes = parseInt(workInput.value) || 25;
             breakDurationMinutes = parseInt(breakInput.value) || 5;
             localStorage.removeItem(LS_KEY); // Clear saved state
-            updateDisplay(); // Display 00:00
+            updateDisplay(); // Display 00:00 and Idle state
             updateButtonStates(false); // Show start, hide pause/reset
             enableInputs(true);
             statusMessage.textContent = 'Timer reset. Set durations and click Start.';
             document.title = "Pomodoro Timer";
 
              // Optional: Notify server if reset happens mid-session
-             // if (notifyServer) { sendResetSignal(); }
+             // if (notifyServer) { sendResetSignal(); } // Implement sendResetSignal if needed
         }
 
         function handlePhaseCompletion() {
-            stopCountdown();
-            playAlarm();
             const completedPhase = phase; // Store before changing
+            stopCountdown(); // Stop interval explicitly
+            playAlarm();
 
-            // Signal completion to backend
+            // Signal completion to backend BEFORE changing client state
             sendCompleteSignal(completedPhase);
 
             if (completedPhase === 'work') {
-                phase = 'break';
-                remainingSeconds = breakDurationMinutes * 60;
+                phase = 'break'; // Set next phase *before* starting countdown
+                remainingSeconds = 0; // Ensure break starts fresh
+                prePausePhase = null;
                 statusMessage.textContent = "Work complete! Starting break.";
                 saveState(); // Save break state before starting countdown
-                setTimeout(() => startCountdown(), 1000); // Start break after 1 sec
+                // Use configured break duration
+                remainingSeconds = breakDurationMinutes * 60;
+                updateDisplay(); // Show initial break time
+                setTimeout(startCountdown, 1000); // Start break countdown after 1 sec
+
             } else if (completedPhase === 'break') {
                  statusMessage.textContent = "Break complete! Session finished.";
                  // Fully reset after break
-                 setTimeout(() => resetTimer(), 1000); // Reset UI after 1 sec
+                 setTimeout(resetTimer, 1000); // Reset UI after 1 sec
             }
         }
 
         // --- State Persistence (localStorage) ---
 
         function saveState() {
+            // Only save state if timer is not idle
+            if (phase === 'idle') {
+                localStorage.removeItem(LS_KEY); // Clear state if idle
+                return;
+            }
             const state = {
                 remainingSeconds,
                 phase,
+                prePausePhase, // *** Save prePausePhase ***
                 workDurationMinutes,
                 breakDurationMinutes
             };
@@ -183,32 +222,38 @@
                 const savedState = localStorage.getItem(LS_KEY);
                 if (savedState) {
                     const state = JSON.parse(savedState);
+                    // Validate loaded state properties
+                    if (typeof state.remainingSeconds !== 'number' || typeof state.phase !== 'string') {
+                         throw new Error("Invalid state structure");
+                    }
+
                     remainingSeconds = state.remainingSeconds;
-                    phase = state.phase; // Could be 'work', 'break', or 'paused'
-                    workDurationMinutes = state.workDurationMinutes;
-                    breakDurationMinutes = state.breakDurationMinutes;
+                    phase = state.phase; // Could be 'work', 'break', 'paused', or potentially 'idle' if saved incorrectly
+                    prePausePhase = state.prePausePhase || null; // *** Load prePausePhase ***
+                    workDurationMinutes = state.workDurationMinutes || 25; // Provide default
+                    breakDurationMinutes = state.breakDurationMinutes || 5; // Provide default
 
                     // Update UI based on loaded state
                     workInput.value = workDurationMinutes;
                     breakInput.value = breakDurationMinutes;
-                    updateDisplay();
+                    updateDisplay(); // Update display based on loaded state
 
+                    // If loaded state is technically running, force pause for user interaction
                     if (phase === 'work' || phase === 'break') {
-                        // Timer was running, resume it (or keep paused if loaded as paused)
-                        statusMessage.textContent = `Timer session loaded (${phase}). Click Start/Resume.`;
-                        // Decide if you want to auto-resume or require click:
-                        // startCountdown(); // Auto-resume
-                         updateButtonStates(true); // Show Pause/Reset
-                         enableInputs(false);
-                         phase = 'paused'; // Force pause on load, require user action to resume
-                         statusMessage.textContent = `Loaded paused ${state.phase} session. Press Start/Resume.`;
+                         console.warn("Loaded running state, forcing pause.");
+                         prePausePhase = phase; // Store the intended running phase
+                         phase = 'paused';
+                    }
 
-
-                    } else if (phase === 'paused') {
-                        updateButtonStates(false); // Show Start/Resume button
+                    if (phase === 'paused') {
+                        updateButtonStates(false); // Show Resume button
                         enableInputs(false);
-                        statusMessage.textContent = `Loaded paused session. Press Start/Resume.`;
-                    } else { // Idle or unexpected state
+                        statusMessage.textContent = `Loaded paused ${prePausePhase || '?'} session. Press Resume.`;
+                    } else if (phase === 'idle') {
+                         resetTimer(); // Treat loaded idle state as a reset
+                    } else {
+                         // Unexpected state, reset
+                         console.warn("Loaded unexpected state, resetting:", state);
                          resetTimer();
                     }
                 } else {
@@ -229,12 +274,12 @@
                 startBtn.style.display = 'none';
                 pauseBtn.style.display = 'inline-block';
                 resetBtn.style.display = 'inline-block';
-                pauseBtn.textContent = 'Pause'; // Ensure it says Pause
+                pauseBtn.textContent = 'Pause';
             } else { // Paused or Idle
                 startBtn.style.display = 'inline-block';
                 startBtn.textContent = (phase === 'paused') ? 'Resume' : 'Start'; // Change text if paused
                 pauseBtn.style.display = 'none';
-                // Keep reset visible if paused, hide if truly idle
+                // Keep reset visible only if paused
                 resetBtn.style.display = (phase === 'paused') ? 'inline-block' : 'none';
             }
         }
@@ -252,19 +297,19 @@
              try {
                 const response = await fetch("{{ url_for('main.api_start_timer') }}", {
                      method: 'POST',
-                     headers: {'Content-Type': 'application/json'},
+                     headers: {'Content-Type': 'application/json', 'Accept': 'application/json'}, // Added Accept
                      body: JSON.stringify({ work: workDurationMinutes, break: breakDurationMinutes })
                 });
                 if (!response.ok) {
-                    console.error("Server error on start:", response.status, await response.text());
-                    // Optionally revert client state or show error to user
+                    const errorData = await response.json().catch(() => ({ error: "Unknown server error" })); // Try to parse error
+                    console.error("Server error on start:", response.status, errorData);
                 } else {
                      console.log("Server acknowledged timer start.");
-                     const data = await response.json(); // Process response if needed
+                     // const data = await response.json(); // Process if needed
                 }
              } catch (error) {
                  console.error("Network error sending start signal:", error);
-                 // Handle network issues (e.g., retry logic, user notification)
+                 // TODO: Maybe inform user that state might not be synced with server?
              }
         }
 
@@ -273,17 +318,19 @@
              try {
                  const response = await fetch("{{ url_for('main.api_complete_phase') }}", {
                      method: 'POST',
-                     headers: {'Content-Type': 'application/json'},
+                     headers: {'Content-Type': 'application/json', 'Accept': 'application/json'}, // Added Accept
                      body: JSON.stringify({ phase_completed: completedPhase })
                  });
                   if (!response.ok) {
-                    console.error(`Server error on complete phase (${completedPhase}):`, response.status, await response.text());
+                     const errorData = await response.json().catch(() => ({ error: "Unknown server error" })); // Try to parse error
+                     console.error(`Server error on complete phase (${completedPhase}):`, response.status, errorData);
                  } else {
                      console.log(`Server acknowledged ${completedPhase} completion.`);
-                     const data = await response.json(); // Process response if needed
+                     // const data = await response.json(); // Process if needed
                  }
              } catch (error) {
                   console.error(`Network error sending complete signal (${completedPhase}):`, error);
+                   // TODO: Maybe inform user that state might not be synced with server?
              }
         }
 
@@ -291,6 +338,7 @@
 
         function init() {
             startBtn.addEventListener('click', () => {
+                // Handles both Start and Resume clicks
                 if (phase === 'idle') { // Starting fresh
                     workDurationMinutes = parseInt(workInput.value) || 25;
                     breakDurationMinutes = parseInt(breakInput.value) || 5;
@@ -298,23 +346,23 @@
                          alert("Please enter positive values for work and break durations.");
                          return;
                     }
+                    remainingSeconds = 0; // Ensure start from full duration
                     enableInputs(false); // Disable inputs once started
                     sendStartSignal(); // Notify server
                     startCountdown();
                 } else if (phase === 'paused') { // Resuming
                      enableInputs(false);
-                     startCountdown(); // Resumes from remainingSeconds and saved phase
+                     startCountdown(); // Resumes from remainingSeconds and restores prePausePhase
                 }
             });
 
-            pauseBtn.addEventListener('click', pauseCountdown);
+            pauseBtn.addEventListener('click', pauseCountdown); // Should work correctly now
+
             resetBtn.addEventListener('click', () => {
-                 // Ask for confirmation?
-                 if (confirm("Are you sure you want to reset the timer? This will end the current session.")) {
-                    // Decide if resetting mid-session should notify server to clear state
-                    // const notifyServer = (phase === 'work' || phase === 'break' || phase === 'paused');
+                 if (confirm("Are you sure you want to reset the timer? This will end the current session and clear server state.")) {
                      resetTimer();
-                     // if (notifyServer) { /* call sendResetSignal() maybe */ }
+                     // Consider if server needs notification on reset (e.g., clear active_timers[user_id])
+                     // sendResetSignal(); // <-- Implement if needed to clear server state immediately
                  }
             });
 
