@@ -220,7 +220,8 @@ def api_chat():
 
     # Construct the context for the AI
     context = f"""
-    You are a helpful productivity assistant integrated into a Pomodoro timer web app.
+    You are a helpful productivity assistant integrated into a Pomodoro timer web app. 
+    Limit yourself to talk about productivity, and pomodoro related things, as well as about their statistics.
     The user '{current_user.name}' (ID: {current_user.id}) you are talking to has the following Pomodoro statistics:
     - Total Focused Time: {dashboard_data.get('total_focus', 'N/A')} minutes
     - Total Break Time: {dashboard_data.get('total_break', 'N/A')} minutes
