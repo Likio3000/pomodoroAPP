@@ -1,5 +1,5 @@
 # pomodoro_app/__init__.py
-import os  # <-- Import the os module
+import os
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -21,11 +21,9 @@ def create_app(config_object=None): # Optional: Pass a config object for testing
     app = Flask(__name__, instance_relative_config=True) # Consider using instance folder
 
     # --- Configuration ---
-    # Load default config (can be empty or contain non-sensitive defaults)
     # app.config.from_object('config.DefaultConfig') # Example if you use a config file
 
     # Load secret key from environment variable
-    # Provide a default (INSECURE) key ONLY for convenience in local dev if the var isn't set
     # Ensure the real key is set in your production/staging environments!
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-please-change')
 

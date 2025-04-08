@@ -23,7 +23,8 @@ body {
     font-weight: bold;
   }
   .navbar .nav-links a {
-    color: #fff;
+    color: #76c2f1;
+    /* color: #fff; */
     margin-right: 1em;
   }
   .navbar .nav-links a:last-child {
