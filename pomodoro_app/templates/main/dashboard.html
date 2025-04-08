@@ -7,20 +7,74 @@
     <li><strong>Total Break Time:</strong> {{ total_break }} minutes</li>
     <li><strong>Completed Pomodoro Sessions:</strong> {{ total_sessions }}</li>
   </ul>
-  
+
   <h3>Past Sessions</h3>
   {% if sessions %}
     <table class="sessions-table">
-      <tr><th>Date</th><th>Work (min)</th><th>Break (min)</th></tr>
-      {% for sess in sessions %}
-        <tr>
-          <td>{{ sess.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
-          <td>{{ sess.work_duration }}</td>
-          <td>{{ sess.break_duration }}</td>
-        </tr>
-      {% endfor %}
+      <thead> {# Added thead for structure #}
+        <tr><th>Date & Time (Your Local)</th><th>Work (min)</th><th>Break (min)</th></tr>
+      </thead>
+      <tbody> {# Added tbody for structure #}
+        {% for sess in sessions %}
+          <tr>
+            {# Pass the UTC timestamp in ISO format using a data attribute
+               Because sess.timestamp is now UTC-aware (due to the fix in routes.py),
+               .isoformat() will include the +00:00 offset. #}
+            <td class="local-timestamp" data-timestamp="{{ sess.timestamp.isoformat() }}">
+              {# Initial display (optional): Keep ISO as fallback or show "Loading..." #}
+              {{ sess.timestamp.isoformat() }}
+            </td>
+            <td>{{ sess.work_duration }}</td>
+            <td>{{ sess.break_duration }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
     </table>
   {% else %}
     <p>No sessions recorded yet. <a href="{{ url_for('main.timer') }}">Start your first Pomodoro!</a></p>
   {% endif %}
+
+  {# This JavaScript block remains unchanged. It relies on receiving
+     a valid ISO 8601 string WITH timezone offset in data-timestamp. #}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Find all elements that need local time formatting
+      const timestampCells = document.querySelectorAll('.local-timestamp');
+
+      timestampCells.forEach(cell => {
+        const isoTimestamp = cell.getAttribute('data-timestamp');
+        if (isoTimestamp) {
+          try {
+            // Parse the ISO 8601 timestamp (e.g., "2025-04-08T17:19:30.532886+00:00")
+            const date = new Date(isoTimestamp);
+
+            // Check if the date is valid after parsing
+            if (isNaN(date.getTime())) {
+                 console.error("Invalid Date parsed from timestamp:", isoTimestamp);
+                 throw new Error("Invalid Date parsed");
+            }
+
+            // Format the date using the user's locale settings
+            // You can customize the options for toLocaleString
+            const options = {
+              year: 'numeric', month: 'short', day: 'numeric',
+              hour: 'numeric', minute: '2-digit', // hh:mm format
+              // timeZoneName: 'short' // Optional: show timezone abbreviation like GMT+2
+            };
+            // 'undefined' uses the browser's default locale and timezone
+            cell.textContent = date.toLocaleString(undefined, options);
+
+          } catch (e) {
+            console.error("Error formatting date:", isoTimestamp, e);
+            // Keep the original ISO timestamp or show an error message in the cell
+             cell.textContent = isoTimestamp + " (Error)"; // Indicate error
+          }
+        } else {
+            // Handle cases where data-timestamp might be missing or empty
+            cell.textContent = "N/A";
+        }
+      });
+    });
+  </script>
+
 {% endblock %}
