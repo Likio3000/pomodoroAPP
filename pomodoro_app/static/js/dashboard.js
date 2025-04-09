@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const options = {
             year: 'numeric', month: 'short', day: 'numeric',
             hour: 'numeric', minute: '2-digit',
-            // timeZoneName: 'short' // Optional
+            // timeZoneName: 'short' // Optional: show timezone abbreviation
           };
           // 'undefined' uses the browser's default locale and timezone
           cell.textContent = date.toLocaleString(undefined, options);
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const chatInput = document.getElementById('chat-input');
         const chatSendBtn = document.getElementById('chat-send-btn');
         const chatStatus = document.getElementById('chat-status');
-        const dashboardDataDiv = document.getElementById('dashboard-data');
+        const dashboardDataDiv = document.getElementById('dashboard-data'); // Get the div holding all data attributes
   
         // Check if essential elements exist
         if (!chatLog || !chatInput || !chatSendBtn || !chatStatus || !dashboardDataDiv) {
@@ -83,13 +83,18 @@ document.addEventListener('DOMContentLoaded', function() {
             addChatMessage('user', userPrompt);
             chatInput.value = ''; // Clear input field immediately
   
-            // --- Get Dashboard Data ---
+            // --- *** Get ALL Dashboard Data from data attributes *** ---
+            // Read all relevant data attributes from the dashboardDataDiv
             const dashboardData = {
                 total_focus: dashboardDataDiv.dataset.totalFocus || '0',
                 total_break: dashboardDataDiv.dataset.totalBreak || '0',
-                total_sessions: dashboardDataDiv.dataset.totalSessions || '0'
+                total_sessions: dashboardDataDiv.dataset.totalSessions || '0',
+                today_focus: dashboardDataDiv.dataset.todayFocus || '0',       // Added
+                today_sessions: dashboardDataDiv.dataset.todaySessions || '0', // Added
+                week_focus: dashboardDataDiv.dataset.weekFocus || '0',         // Added
+                week_sessions: dashboardDataDiv.dataset.weekSessions || '0'    // Added
             };
-            // -------------------------
+            // --------------------------------------------------------------
   
             try {
                 // Use the URL passed from the template
@@ -101,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     body: JSON.stringify({
                         prompt: userPrompt,
-                        dashboard_data: dashboardData
+                        dashboard_data: dashboardData // Send the enhanced data object
                     })
                 });
   
@@ -114,21 +119,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     let errorMsg = `HTTP error! Status: ${response.status}`;
                     try {
                          const errorData = await response.json();
-                         errorMsg = errorData.error || errorMsg;
+                         errorMsg = errorData.error || errorMsg; // Use server error if available
                     } catch (e) {
                          console.warn("Could not parse error response JSON.");
                     }
-                    throw new Error(errorMsg);
+                    throw new Error(errorMsg); // Propagate error to be caught below
                 }
   
                 const data = await response.json();
                 if (data.response) {
                     addChatMessage('ai', data.response);
                 } else if (data.error) {
+                     // Handle errors explicitly sent in JSON structure
                      console.error("API returned error in JSON:", data.error);
                      addChatMessage('ai', `Sorry, I encountered an error: ${data.error}`);
                      chatStatus.textContent = 'Error occurred.';
                 } else {
+                    // Response OK but unexpected format
                     console.error("Unexpected response format:", data);
                     addChatMessage('ai', `Sorry, I received an unexpected response from the server.`);
                     chatStatus.textContent = 'Error occurred.';
@@ -142,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 chatSendBtn.disabled = false;
                 chatStatus.textContent = 'Connection error.';
             } finally {
-                 chatInput.focus(); // Put focus back to input field
+                 chatInput.focus(); // Put focus back to input field for convenience
             }
         }
   
@@ -150,12 +157,26 @@ document.addEventListener('DOMContentLoaded', function() {
         chatSendBtn.addEventListener('click', sendChatMessage);
   
         chatInput.addEventListener('keypress', function(event) {
+            // Send message on Enter key press, unless Shift+Enter is used
             if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
+                event.preventDefault(); // Prevent default newline/submit behavior
                 sendChatMessage();
             }
         });
   
-    } // end if (chatEnabled && apiChatUrl)
+    } else {
+        // Optional: Log if chat is disabled or URL is missing
+        if (!chatEnabled) console.log("Chat feature is disabled via config.");
+        if (!apiChatUrl) console.error("Chat API URL is missing. Chat cannot function.");
+        // Optionally disable input elements if chat is meant to be enabled but URL is missing
+        if (chatEnabled && !apiChatUrl) {
+            const chatInput = document.getElementById('chat-input');
+            const chatSendBtn = document.getElementById('chat-send-btn');
+            if(chatInput) chatInput.disabled = true;
+            if(chatSendBtn) chatSendBtn.disabled = true;
+            const chatStatus = document.getElementById('chat-status');
+            if(chatStatus) chatStatus.textContent = "Chat config error.";
+        }
+    }
   
   }); // end DOMContentLoaded

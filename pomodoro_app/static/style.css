@@ -19,49 +19,76 @@ a:hover { text-decoration: underline; }
   color: #fff;
   padding: 0.5em 1em;
 }
+.navbar .container {
+    display: flex; /* Use flexbox for alignment */
+    justify-content: space-between; /* Space brand and links */
+    align-items: center; /* Vertically align items */
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+}
 .navbar .brand {
   font-weight: bold;
+}
+.navbar .nav-links {
+    display: flex; /* Use flex for links too */
+    gap: 1em; /* Space between links */
 }
 .navbar .nav-links a {
   color: #76c2f1;
   /* color: #fff; */
-  margin-right: 1em;
+  /* margin-right: 1em; Removed in favor of gap */
 }
-.navbar .nav-links a:last-child {
-  margin-right: 0;
-}
+/* .navbar .nav-links a:last-child { Removed } */
 
 /* Container */
 .container {
-  max-width: 800px;
+  max-width: 960px; /* Slightly wider for better column layout */
   margin: auto;
   padding: 1em;
 }
 
 /* Flash messages */
 .flash-messages .flash {
-  padding: 0.5em;
+  padding: 0.75em 1.25em; /* Slightly more padding */
   margin-bottom: 1em;
   border-radius: 4px;
+  border: 1px solid transparent; /* Base border */
 }
-.flash.error { background: #f8d7da; color: #721c24; }
-.flash.success { background: #d4edda; color: #155724; }
-.flash.info { background: #cce5ff; color: #004085; }
+.flash.error { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+.flash.success { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+.flash.info { background: #cce5ff; color: #004085; border-color: #b8daff; }
 
 /* Forms */
 .form-group {
   margin-bottom: 1em;
 }
+.form-group label { /* Style labels */
+    display: block;
+    margin-bottom: 0.3em;
+    font-weight: bold;
+}
 .input, .checkbox {
-  padding: 0.4em;
+  padding: 0.5em; /* Slightly larger padding */
   font-size: 1em;
   width: 100%;
-  max-width: 300px;
+  max-width: 350px; /* Slightly wider max width */
   box-sizing: border-box;
-  margin-top: 0.2em;
+  /* margin-top: 0.2em; Removed, handled by label margin */
+  border: 1px solid #ccc; /* Add border */
+  border-radius: 3px;
 }
+.checkbox {
+    width: auto; /* Checkboxes shouldn't be full width */
+    margin-right: 0.5em; /* Space between checkbox and its label text */
+}
+.form-group .error { /* Style validation errors */
+    color: #dc3545;
+    font-size: 0.9em;
+    margin-top: 0.2em;
+    display: block;
+}
+
 .btn {
-  padding: 0.5em 1.5em;
+  padding: 0.6em 1.5em; /* Slightly taller buttons */
   font-size: 1em;
   cursor: pointer;
   background: #007BFF;
@@ -69,6 +96,8 @@ a:hover { text-decoration: underline; }
   border: none;
   border-radius: 3px;
   transition: background-color 0.2s ease; /* Add smooth hover transition */
+  display: inline-block; /* Ensure buttons behave predictably */
+  text-align: center;
 }
 .btn:hover {
   background: #0056b3;
@@ -76,163 +105,223 @@ a:hover { text-decoration: underline; }
 .btn:disabled { /* Style for disabled buttons */
     background: #cccccc;
     cursor: not-allowed;
+    opacity: 0.7;
 }
 
 
 /* Timer page */
+.timer-controls {
+    margin-bottom: 1.5em;
+    display: flex;
+    flex-direction: column; /* Stack setup and buttons */
+    gap: 1em;
+}
 .timer-setup {
-  margin-bottom: 1em;
+  display: flex; /* Align labels/inputs horizontally */
+  gap: 1em;
+  flex-wrap: wrap; /* Allow wrapping */
 }
 .timer-setup label {
-  margin-right: 1em;
+  display: flex; /* Align label text and input */
+  align-items: center;
+  gap: 0.5em;
+}
+.timer-setup input[type="number"] {
+    width: 60px; /* Fixed width for number inputs */
+    padding: 0.4em;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+.timer-buttons {
+    display: flex;
+    gap: 0.8em; /* Space between buttons */
 }
 .timer-display {
-  font-size: 2em;
+  font-size: 3em; /* Larger timer display */
   font-weight: bold;
-  margin: 1em 0;
+  margin: 0.5em 0; /* Adjusted margin */
+  color: #333;
+  text-align: center; /* Center the timer */
 }
 .status-message {
   font-size: 1.1em;
-  margin: 0.5em 0;
-  color: #d63384;
+  margin: 0.5em 0 1em 0; /* Adjusted margin */
+  color: #d63384; /* A noticeable color */
+  text-align: center; /* Center status message */
+  min-height: 1.3em; /* Prevent layout shifts */
 }
 
-/* Dashboard Stats & Sessions table */
+/* Dashboard Styles */
+
+/* +++ Styles for Stats Columns +++ */
+.stats-columns-container {
+  display: flex;            /* Enable Flexbox */
+  flex-wrap: wrap;        /* Allow columns to wrap on small screens */
+  gap: 1.5em;             /* Increased space between columns */
+  margin-bottom: 2em;     /* Increased space below the entire stats section */
+  /* justify-content: space-between; -- Let flex:1 handle spacing */
+}
+
+.stats-column {
+  flex: 1;                /* Each column tries to take equal space */
+  min-width: 220px;       /* Minimum width before wrapping (adjust as needed) */
+  padding: 1em;           /* Padding inside each column */
+  border: 1px solid #e0e0e0; /* Border for visual separation */
+  border-radius: 5px;     /* Rounded corners */
+  background-color: #fff; /* White background for columns */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */
+}
+
+.stats-column h3 {
+  margin-top: 0;          /* Remove default top margin */
+  border-bottom: 1px solid #eee; /* Separator below title */
+  padding-bottom: 0.5em;
+  margin-bottom: 0.8em;   /* Space below title */
+  font-size: 1.1em;       /* Slightly smaller heading */
+  color: #555;
+}
+/* +++ End Stats Column Styles +++ */
+
+
+/* Individual Stats List */
 .stats {
   list-style: none;
   padding-left: 0;
+  margin-bottom: 0; /* Remove default bottom margin */
 }
 .stats li {
-  margin-bottom: 0.5em;
+  margin-bottom: 0.6em; /* Slightly more space between list items */
+  line-height: 1.4;   /* Improve readability */
+}
+.stats li strong {
+    color: #333; /* Make the label slightly darker */
 }
 
+
+/* Scrollable Sessions Table Container */
+.sessions-table-container {
+  max-height: 300px; /* Adjust height as needed (approx 7-8 rows) */
+  overflow-y: auto;  /* Vertical scrollbar only when needed */
+  border: 1px solid #ddd;
+  margin-bottom: 1.5em; /* Space below the table before the chat */
+  border-radius: 3px; /* Optional: match other elements */
+}
+
+/* Sessions Table */
 .sessions-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1em; /* Space above table */
 }
-.sessions-table th, .sessions-table td {
-  border: 1px solid #ddd;
-  padding: 0.5em;
-  text-align: center;
-}
-.sessions-table th {
-  background: #e9ecef;
-}
-.sessions-table tr:nth-child(even) {
-  background: #fdfdfd;
-}
-
-/* Scrollable container for the sessions table */
-.sessions-table-container {
-  max-height: 300px; /* Adjust this value based on ~8 rows height + padding */
-  overflow-y: auto;  /* Add vertical scrollbar only when needed */
-  border: 1px solid #ddd; /* Optional: Add border to the container */
-  margin-bottom: 1.5em; /* Add some space below the table before the chat */
-}
-
-/* --- Optional but Recommended: Sticky Table Header --- */
+/* Sticky Header for scrollable table */
 .sessions-table thead th {
   position: sticky; /* Make the header sticky */
   top: 0;           /* Stick to the top of the scrollable container */
   background: #e9ecef; /* Ensure header has background to hide scrolling content */
   z-index: 1;       /* Ensure header stays above table body content */
-}
-
-/* Existing table styles (keep them) */
-.sessions-table {
-  width: 100%;
-  border-collapse: collapse;
-  /* Remove margin-top if you added it to sessions-table-container */
-  /* margin-top: 1em; */
+  /* Optional: Add bottom border to sticky header for definition */
+  border-bottom: 2px solid #ccc;
 }
 .sessions-table th, .sessions-table td {
-  border: 1px solid #ddd; /* Keep borders for cells */
-  /* Consider removing top/bottom border if using sticky header + container border */
-  /* border-left: 1px solid #ddd; */
-  /* border-right: 1px solid #ddd; */
-  padding: 0.5em;
+  /* Adjusted borders slightly for sticky header setup */
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+  border-top: none; /* Top border handled by bottom border of row above or header */
+  padding: 0.6em; /* Slightly more padding */
   text-align: center;
+  font-size: 0.95em; /* Slightly smaller font in table */
 }
-/* Keep other existing styles for th, td, tr:nth-child */
 .sessions-table th {
-    /* background is handled above for sticky */
+  font-weight: bold;
+  color: #495057;
 }
 .sessions-table tr:nth-child(even) {
-  background: #fdfdfd;
+  background: #f8f9fa; /* Use a slightly different even row color */
 }
+.sessions-table tr:hover { /* Add hover effect */
+    background-color: #f1f1f1;
+}
+
 
 /* Chat Agent Styles */
 .chat-agent-section {
   margin-top: 2em;
-  padding: 1em;
+  padding: 1.5em; /* More padding */
   border: 1px solid #ddd;
   background-color: #fff;
   border-radius: 5px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07); /* Slightly stronger shadow */
 }
 
 .chat-agent-section.disabled p {
     color: #888;
     font-style: italic;
 }
+.chat-agent-section h3 {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+}
+.chat-agent-section > p { /* Style the intro paragraph */
+    margin-top: 0;
+    margin-bottom: 1em;
+    color: #666;
+}
 
 .chat-log {
-  height: 250px; /* Adjust height as needed */
+  height: 300px; /* Increased height */
   overflow-y: auto;
   border: 1px solid #eee;
-  padding: 0.5em;
+  padding: 1em; /* Increased padding */
   margin-bottom: 1em;
-  background-color: #f8f9fa; /* Slightly off-white background */
+  background-color: #f8f9fa;
   border-radius: 3px;
 }
 
 .chat-log .message {
-  margin-bottom: 0.75em;
-  padding: 0.5em 1em; /* Slightly more padding */
-  border-radius: 18px; /* More rounded bubbles */
-  max-width: 85%; /* Slightly wider max width */
-  line-height: 1.4;
-  word-wrap: break-word; /* Ensure long words break */
-  clear: both; /* Prevent floating issues */
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Subtle shadow */
+  margin-bottom: 0.8em; /* Increased spacing */
+  padding: 0.6em 1.1em; /* Adjusted padding */
+  border-radius: 18px;
+  max-width: 85%;
+  line-height: 1.45; /* Improved line height */
+  word-wrap: break-word;
+  clear: both;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 
 .chat-log .message.user {
   background-color: #007bff;
   color: white;
-  margin-left: auto; /* Align user messages to the right */
-  float: right; /* Use float for alignment */
-  border-bottom-right-radius: 5px; /* Less rounded corner */
-  /* text-align: right; -- Not needed with float */
+  margin-left: auto;
+  float: right;
+  border-bottom-right-radius: 5px;
 }
 
 .chat-log .message.ai {
   background-color: #e9ecef;
   color: #333;
-  margin-right: auto; /* Align AI messages to the left */
-  float: left; /* Use float for alignment */
-  border-bottom-left-radius: 5px; /* Less rounded corner */
-  /* text-align: left; -- Not needed with float */
+  margin-right: auto;
+  float: left;
+  border-bottom-left-radius: 5px;
 }
 
 
 .chat-input-area {
   display: flex;
   gap: 0.5em;
-  margin-top: 1em; /* Space above input */
+  margin-top: 1em;
 }
 
 #chat-input {
-  flex-grow: 1; /* Take remaining space */
-  padding: 0.6em; /* Slightly larger padding */
+  flex-grow: 1;
+  padding: 0.7em; /* Increased padding */
   border: 1px solid #ccc;
   border-radius: 3px;
   font-size: 1em;
 }
  #chat-input:disabled {
       background-color: #e9ecef; /* Indicate disabled state */
+      cursor: not-allowed;
   }
-
 
 #chat-send-btn {
     flex-shrink: 0; /* Prevent button from shrinking */
@@ -241,24 +330,53 @@ a:hover { text-decoration: underline; }
 .chat-status {
     font-size: 0.9em;
     color: #666;
-    margin-top: 0.5em;
-    min-height: 1.2em; /* Prevent layout shift when text appears/disappears */
+    margin-top: 0.7em; /* Increased space */
+    min-height: 1.2em; /* Prevent layout shift */
+    font-style: italic;
 }
 
 
 /* Responsive adjustments */
+@media (max-width: 768px) {
+   /* Adjust column behavior if needed before stacking */
+   .stats-column {
+       min-width: 45%; /* Example: allow two columns side-by-side longer */
+   }
+}
+
 @media (max-width: 600px) {
-  .timer-setup label {
-    display: block;
-    margin-bottom: 0.5em;
+  /* Navbar adjustments */
+  .navbar .container {
+      flex-direction: column;
+      align-items: flex-start;
   }
-  .nav-links {
+  .navbar .nav-links {
     margin-top: 0.5em;
+    width: 100%; /* Make links take full width */
+    justify-content: flex-start;
   }
+  /* Stack timer setup */
+  .timer-setup {
+      flex-direction: column;
+      align-items: stretch; /* Make labels full width */
+  }
+   .timer-setup input[type="number"] {
+       width: auto; /* Allow number input to grow */
+   }
+
+  /* Stack stats columns */
+  .stats-columns-container {
+       flex-direction: column;
+       gap: 1em; /* Adjust gap for stacked */
+  }
+   .stats-column {
+       min-width: 95%; /* Take up most width when stacked */
+   }
+
   .chat-log .message {
-      max-width: 90%; /* Allow slightly wider bubbles on mobile */
+      max-width: 90%;
   }
   .container {
-      padding: 0.5em; /* Reduce padding on small screens */
+      padding: 0.8em; /* Slightly adjust padding */
   }
 }

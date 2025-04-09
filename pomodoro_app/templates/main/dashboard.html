@@ -3,35 +3,67 @@
   <h2>Dashboard</h2>
   <p>Welcome, {{ current_user.name }}! Here are your productivity stats:</p>
 
-  {# Container to hold data for JS #}
+  {# Container to hold data attributes for JS (remains the same) #}
+  {# This div is primarily for passing data to dashboard.js #}
   <div id="dashboard-data"
        data-total-focus="{{ total_focus }}"
        data-total-break="{{ total_break }}"
-       data-total-sessions="{{ total_sessions }}">
+       data-total-sessions="{{ total_sessions }}"
+       data-today-focus="{{ today_focus }}"
+       data-today-sessions="{{ today_sessions }}"
+       data-week-focus="{{ week_focus }}"
+       data-week-sessions="{{ week_sessions }}"
+       >
+    {# No direct visual content here anymore, just data attributes #}
+  </div>
 
-    <ul class="stats">
-      <li><strong>Total Focused Time:</strong> {{ total_focus }} minutes</li>
-      <li><strong>Total Break Time:</strong> {{ total_break }} minutes</li>
-      <li><strong>Completed Pomodoro Sessions:</strong> {{ total_sessions }}</li>
-    </ul>
+  {# +++ NEW: Flex Container for the Stats Columns +++ #}
+  <div class="stats-columns-container">
 
-  </div> {# End of dashboard-data #}
+    {# Column 1: Overall Stats #}
+    <div class="stats-column">
+      <h3>Overall Stats</h3>
+      <ul class="stats">
+        <li><strong>Total Focused Time:</strong> {{ total_focus }} minutes</li>
+        <li><strong>Total Break Time:</strong> {{ total_break }} minutes</li>
+        <li><strong>Completed Pomodoro Sessions:</strong> {{ total_sessions }}</li>
+      </ul>
+    </div> {# End stats-column (Overall) #}
+
+    {# Column 2: Today's Stats #}
+    <div class="stats-column">
+      <h3>Today's Stats (UTC)</h3>
+      <ul class="stats">
+        <li><strong>Focused Time Today:</strong> {{ today_focus }} minutes</li>
+        <li><strong>Sessions Today:</strong> {{ today_sessions }}</li>
+      </ul>
+    </div> {# End stats-column (Today) #}
+
+    {# Column 3: Week's Stats #}
+    <div class="stats-column">
+      <h3>This Week's Stats (UTC, Mon)</h3> {# Shortened title slightly #}
+       <ul class="stats">
+        <li><strong>Focused Time This Week:</strong> {{ week_focus }} minutes</li>
+        <li><strong>Sessions This Week:</strong> {{ week_sessions }}</li>
+      </ul>
+    </div> {# End stats-column (Week) #}
+
+  </div> {# +++ End stats-columns-container +++ #}
 
 
+  {# Past Sessions Section (structure remains the same, including scrollable container) #}
   <h3>Past Sessions</h3>
   {% if sessions %}
-    {# ADDED Scrollable Container #}
-    <div class="sessions-table-container">
+    <div class="sessions-table-container"> {# Scrollable container #}
       <table class="sessions-table">
-        <thead> {# Added thead for structure #}
+        <thead>
           <tr><th>Date & Time (Your Local)</th><th>Work (min)</th><th>Break (min)</th></tr>
         </thead>
-        <tbody> {# Added tbody for structure #}
+        <tbody>
           {% for sess in sessions %}
             <tr>
-              {# Pass UTC timestamp via data attribute for JS formatting #}
+              {# JS formats this based on data-timestamp #}
               <td class="local-timestamp" data-timestamp="{{ sess.timestamp.isoformat() if sess.timestamp else '' }}">
-                 {# Initial display (JS will replace this) #}
                  {% if sess.timestamp %}{{ sess.timestamp.isoformat() }}{% else %}N/A{% endif %}
               </td>
               <td>{{ sess.work_duration }}</td>
@@ -40,19 +72,20 @@
           {% endfor %}
         </tbody>
       </table>
-    </div> {# END of sessions-table-container #}
+    </div>
   {% else %}
     <p>No sessions recorded yet. <a href="{{ url_for('main.timer') }}">Start your first Pomodoro!</a></p>
   {% endif %}
 
-  {# +++ Chat Agent Section +++ #}
+  {# Chat Agent Section (structure remains the same) #}
   {% if chat_enabled %}
   <div class="chat-agent-section">
     <h3>Productivity Assistant</h3>
     <p>Ask questions about your stats or get productivity tips!</p>
     <div id="chat-log" class="chat-log">
-      {# Chat messages will appear here via JS #}
+      {# Initial greeting message #}
       <div class="message ai">Hello {{ current_user.name }}! How can I help you analyze your Pomodoro stats or improve your focus today?</div>
+      {# Further messages added by JS #}
     </div>
     <div class="chat-input-area">
       <input type="text" id="chat-input" placeholder="Type your message..." aria-label="Chat message input">
@@ -69,20 +102,20 @@
   {# +++ End Chat Agent Section +++ #}
 
 
-  {# +++ NEW Inline Script to Pass Data to dashboard.js +++ #}
-  {# Place this *before* linking the external dashboard.js file #}
+  {# +++ Inline Script to Pass Config Data to dashboard.js (Remains the same) +++ #}
+  {# This block defines data needed by the external JS file #}
   <script>
     window.dashboardConfig = {
       // Pass the chat enabled status (as true/false)
       chatEnabled: {{ chat_enabled | tojson }},
       // Pass the URL for the chat API endpoint
       apiChatUrl: "{{ url_for('main.api_chat') }}"
-      // Add any other data needed by dashboard.js here in the future
+      // Add any other config needed by dashboard.js here
     };
   </script>
 
-  {# +++ Link the External JavaScript File +++ #}
-  {# Removed the large inline script block #}
+  {# +++ Link the External JavaScript File (Remains the same) +++ #}
+  {# Loads and executes the main dashboard JavaScript logic #}
   <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
 
 {% endblock %}
