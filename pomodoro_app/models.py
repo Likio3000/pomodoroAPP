@@ -1,51 +1,49 @@
 # pomodoro_app/models.py
-from datetime import datetime, timezone  # Ensure timezone is imported
+from datetime import datetime, timezone
 from pomodoro_app import db
 from flask_login import UserMixin
-from sqlalchemy import Index # Import Index if needed
+from sqlalchemy import Index
 
 class User(UserMixin, db.Model):
+    # ... (existing User model remains the same) ...
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
-    # Added index=True for faster email lookups, recommended for login checks
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
-    password = db.Column(db.String(200), nullable=False)  # stores hashed password
-
-    # Relationship defined via backref in PomodoroSession
-
-    def __repr__(self):
-        return f'<User id={self.id} email={self.email}>'
-
+    password = db.Column(db.String(200), nullable=False)
+    # Relationship backrefs defined below
 
 class PomodoroSession(db.Model):
+    # ... (existing PomodoroSession model remains the same) ...
     __tablename__ = 'sessions'
     id = db.Column(db.Integer, primary_key=True)
-    # Added index=True for faster lookups by user_id, ensure not nullable
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    work_duration = db.Column(db.Integer, nullable=False)   # work duration in minutes
-    break_duration = db.Column(db.Integer, nullable=False)  # break duration in minutes
-
-    # This timestamp definition is the standard way to store timezone-aware UTC times.
-    # It relies on the database driver and SQLAlchemy handling the timezone correctly
-    # upon reading and writing (especially important for SQLite which lacks native tz support).
+    work_duration = db.Column(db.Integer, nullable=False)
+    break_duration = db.Column(db.Integer, nullable=False)
     timestamp = db.Column(
-        db.DateTime(timezone=True),             # Instructs SQLAlchemy to handle timezone (for supported backends)
-        nullable=False,                         # Ensure timestamp is always set
-        default=lambda: datetime.now(timezone.utc) # Default to current UTC time when creating new record IN PYTHON
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
     )
-
-    # Define the relationship to the User model explicitly
-    # lazy='select' (default) loads user when accessed.
-    # lazy='joined' loads user with the session query using JOIN.
-    # lazy='dynamic' makes user.sessions a query object (useful for further filtering/pagination).
     user = db.relationship('User', backref=db.backref('sessions', lazy='dynamic', order_by=timestamp.desc()))
-
-    # Optional: Add an index on the timestamp column if you query/order by it frequently
     __table_args__ = (Index('ix_sessions_timestamp', timestamp), )
 
+# +++ NEW MODEL for Active Timer State +++
+class ActiveTimerState(db.Model):
+    __tablename__ = 'active_timers'
+    # Use user_id as primary key assuming one active timer per user
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True, nullable=False)
+    phase = db.Column(db.String(10), nullable=False) # 'work' or 'break'
+    start_time = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    end_time = db.Column(db.DateTime(timezone=True), nullable=False)
+    work_duration_minutes = db.Column(db.Integer, nullable=False)
+    break_duration_minutes = db.Column(db.Integer, nullable=False)
+
+    # Optional: Define a relationship back to the User
+    # This allows accessing the active timer state directly from a user object if needed
+    # user = db.relationship('User', backref=db.backref('active_timer_state', uselist=False))
+    # Decided against the backref for simplicity for now, can query by user_id easily.
 
     def __repr__(self):
-        # Use isoformat for a clearer representation including potential timezone
-        ts_repr = self.timestamp.isoformat() if self.timestamp else "None"
-        return f'<PomodoroSession id={self.id} user_id={self.user_id} time={ts_repr}>'
+        end_repr = self.end_time.isoformat() if self.end_time else "None"
+        return f'<ActiveTimerState user_id={self.user_id} phase={self.phase} ends={end_repr}>'

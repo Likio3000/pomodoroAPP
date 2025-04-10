@@ -1,82 +1,83 @@
 # pomodoro_app/main/routes.py
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session
+from flask import (
+    Blueprint, render_template, request, jsonify, redirect, url_for, session, current_app
+)
 from flask_login import login_required, current_user
-# *** Make sure timedelta is imported ***
 from datetime import datetime, timedelta, timezone
 import os
 try:
     from openai import OpenAI
 except ImportError:
-    OpenAI = None
+    OpenAI = None # Flag that OpenAI library is not installed
 
-# *** Import func for aggregation (optional but cleaner) ***
-from sqlalchemy import func, text # Added text for potential raw SQL if needed, func is primary
+# Import database functions and specific exceptions
+from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 
+# Import database instance, limiter, and models
 from pomodoro_app import db, limiter
-from pomodoro_app.models import PomodoroSession
+from pomodoro_app.models import PomodoroSession, ActiveTimerState, User # Make sure User is imported if needed
 
 main = Blueprint('main', __name__)
 
-# --- Server-Side Timer State Storage ---
-# Simple in-memory dictionary for active timers.
-# IMPORTANT: This is NOT persistent across server restarts and won't work
-#            correctly with multiple server processes/workers.
-#            For production, use Redis or a similar shared store.
-active_timers = {}
-# Example structure:
-# active_timers = {
-#     1: {'phase': 'work', 'start_time': utc_dt, 'end_time': utc_dt, 'work_duration_minutes': 25, 'break_duration_minutes': 5},
-# }
-# --------------------------------------
-
 # --- OpenAI Client Initialization ---
-# It's generally safe to initialize the client once if the API key is set
-# Make sure OPENAI_API_KEY is loaded into the environment where Flask runs
+# Initialize based on environment variable presence, checked later via config flag
 openai_client = None
-if OpenAI and os.getenv("OPENAI_API_KEY"):
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if OpenAI and openai_api_key:
     try:
-        openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        print("OpenAI client initialized.")
+        openai_client = OpenAI(api_key=openai_api_key)
+        # Cannot use logger here reliably as app context might not exist yet
+        # Logging about OpenAI init status is done in create_app
     except Exception as e:
-        print(f"Warning: Failed to initialize OpenAI client: {e}")
-        openai_client = None # Ensure it's None if init fails
-else:
-    if not OpenAI:
-         print("Warning: OpenAI library not found. Chat agent will be disabled.")
-    if not os.getenv("OPENAI_API_KEY"):
-         print("Warning: OPENAI_API_KEY environment variable not set. Chat agent will be disabled.")
-
+        print(f"WARNING: Failed to initialize OpenAI client during module load: {e}") # Print warning if init fails early
+        openai_client = None
+# else: # No warning needed here if lib/key missing, handled by config flag
 
 # --- Routes ---
 
 @main.route('/')
 @limiter.limit("10 per minute")
 def index():
+    """Handles the root URL. Redirects authenticated users."""
     if current_user.is_authenticated:
-        # Check server-side state first (more reliable if implemented robustly)
-        if current_user.id in active_timers:
-             return redirect(url_for('main.timer'))
-        # Could add a check here for client-side state via a cookie or API call if needed
-        return redirect(url_for('main.dashboard'))
+        try:
+            # Check DB for active timer state using primary key lookup (efficient)
+            active_state = db.session.get(ActiveTimerState, current_user.id)
+            if active_state:
+                 current_app.logger.debug(f"User {current_user.id} has active timer state in DB, redirecting to timer page.")
+                 return redirect(url_for('main.timer'))
+            else:
+                 current_app.logger.debug(f"User {current_user.id} has no active timer state, redirecting to dashboard.")
+                 return redirect(url_for('main.dashboard'))
+        except SQLAlchemyError as e:
+             current_app.logger.error(f"Database error checking active timer for user {current_user.id} on index: {e}", exc_info=True)
+             # Fallback: Redirect to dashboard even if DB check failed
+             return redirect(url_for('main.dashboard'))
+        except Exception as e:
+             current_app.logger.error(f"Unexpected error checking active timer for user {current_user.id} on index: {e}", exc_info=True)
+             return redirect(url_for('main.dashboard')) # Fallback
+    # Unauthenticated users see the landing page
     return render_template('index.html')
 
 @main.route('/timer')
 @login_required
 def timer():
-    # Optionally pass existing timer state if needed by template initially
-    # user_timer_state = active_timers.get(current_user.id)
-    return render_template('main/timer.html') #, timer_state=user_timer_state)
-
+    """Displays the timer page."""
+    # Client-side JS handles loading its state from localStorage.
+    # Server only needs to know the current active state via API calls.
+    return render_template('main/timer.html')
 
 # --- API Endpoints ---
 
 @main.route('/api/timer/start', methods=['POST'])
 @login_required
-@limiter.limit("15 per minute") # Allow slightly more starts/updates
+@limiter.limit("15 per minute")
 def api_start_timer():
-    """API endpoint for the client to signal the start of a timer."""
+    """API endpoint for the client to signal the start/restart of a timer."""
     data = request.get_json()
     if not data or 'work' not in data or 'break' not in data:
+        current_app.logger.warning(f"API Start: Bad request from User {current_user.id}. Missing work/break data.")
         return jsonify({'error': 'Missing work or break duration'}), 400
 
     try:
@@ -85,25 +86,50 @@ def api_start_timer():
         if work_minutes <= 0 or break_minutes <= 0:
             raise ValueError("Durations must be positive.")
     except (ValueError, TypeError):
+        current_app.logger.warning(f"API Start: Bad request from User {current_user.id}. Invalid duration values: {data}")
         return jsonify({'error': 'Invalid duration values'}), 400
 
     user_id = current_user.id
-    # Ensure we are using UTC for server-side calculations
     now_utc = datetime.now(timezone.utc)
     end_time_utc = now_utc + timedelta(minutes=work_minutes)
 
-    # Store server-side state (replace with Redis/DB in production)
-    active_timers[user_id] = {
-        'phase': 'work',
-        'end_time': end_time_utc,
-        'start_time': now_utc, # Store start time for accurate logging
-        'work_duration_minutes': work_minutes, # Store original duration
-        'break_duration_minutes': break_minutes
-    }
+    try:
+        # Efficiently check and update/insert using session.get (if PK is user_id)
+        current_state = db.session.get(ActiveTimerState, user_id)
 
-    # Optional debug log
-    # print(f"TIMER DEBUG (Start): User {user_id} starting timer. Server state: {active_timers.get(user_id)}")
-    return jsonify({'status': 'timer_started'}), 200
+        if current_state:
+            # Update existing state
+            current_app.logger.info(f"API Start: Updating existing timer state for User {user_id}.")
+            current_state.phase = 'work'
+            current_state.start_time = now_utc
+            current_state.end_time = end_time_utc
+            current_state.work_duration_minutes = work_minutes
+            current_state.break_duration_minutes = break_minutes
+        else:
+            # Create new state
+            current_app.logger.info(f"API Start: Creating new timer state for User {user_id}.")
+            new_state = ActiveTimerState(
+                user_id=user_id,
+                phase='work',
+                start_time=now_utc,
+                end_time=end_time_utc,
+                work_duration_minutes=work_minutes,
+                break_duration_minutes=break_minutes
+            )
+            db.session.add(new_state)
+
+        db.session.commit() # Commit the change (update or insert)
+        current_app.logger.debug(f"API Start: Timer state saved for User {user_id}. Phase: work, Ends: {end_time_utc.isoformat()}")
+        return jsonify({'status': 'timer_started'}), 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback() # Rollback on DB errors
+        current_app.logger.error(f"API Start: Database error saving timer state for User {user_id}: {e}", exc_info=True)
+        return jsonify({'error': 'Database error occurred saving timer state.'}), 500
+    except Exception as e:
+        db.session.rollback() # Rollback on any other unexpected errors
+        current_app.logger.error(f"API Start: Unexpected error saving timer state for User {user_id}: {e}", exc_info=True)
+        return jsonify({'error': 'An unexpected server error occurred.'}), 500
 
 
 @main.route('/api/timer/complete_phase', methods=['POST'])
@@ -113,245 +139,267 @@ def api_complete_phase():
     """API endpoint for the client to signal the completion of a phase (work/break)."""
     data = request.get_json()
     if not data or 'phase_completed' not in data:
-        return jsonify({'error': 'Missing phase_completed field'}), 400
+         current_app.logger.warning(f"API Complete: Bad request from User {current_user.id}. Missing phase_completed field.")
+         return jsonify({'error': 'Missing phase_completed field'}), 400
 
     phase_completed = data.get('phase_completed')
     user_id = current_user.id
-    now_utc = datetime.now(timezone.utc) # Use UTC for comparisons and new timestamps
+    now_utc = datetime.now(timezone.utc)
 
-    if user_id not in active_timers:
-        # Optional: Keep this logging if helpful
-        # print(f"TIMER DEBUG (Complete): User {user_id} completed phase '{phase_completed}', but NO active server timer found.")
-        # Log work session even if server state is missing, using client data if needed (less accurate)
+    try:
+        # Get current timer state from DB
+        server_state = db.session.get(ActiveTimerState, user_id)
+
+        if not server_state:
+            # If the client thinks a phase completed but the server has no state,
+            # it might be due to a server restart or client/server desync.
+            # Avoid logging a session here to prevent potential duplicates.
+            current_app.logger.warning(f"API Complete: User {user_id} reported phase '{phase_completed}' completion, but NO active timer state found in DB. Acknowledging without action.")
+            return jsonify({'status': 'acknowledged_no_state'}), 200
+
+        # --- State exists, proceed ---
+        current_app.logger.debug(f"API Complete: Processing phase '{phase_completed}' completion for User {user_id}. Current DB state phase: '{server_state.phase}'")
+
+        # Sanity check: does completed phase match server state?
+        if server_state.phase != phase_completed:
+            # This indicates a potential desync. Log it, but generally trust the client signal
+            # as it drives the UI. The server is primarily for logging and persistence.
+            current_app.logger.warning(f"API Complete: Phase mismatch for User {user_id}. Client says '{phase_completed}' done, DB state is '{server_state.phase}'. Proceeding based on client signal.")
+            # Continue processing based on phase_completed from client
+
         if phase_completed == 'work':
+            current_app.logger.info(f"API Complete: User {user_id} completed WORK phase. Logging session and transitioning to break.")
+            # --- Log the completed Work Session ---
+            # Use durations and start time stored in the server state for accuracy.
             try:
-                # Attempt to get duration from request if possible, otherwise use a default or 0
-                work_duration = int(data.get('work_duration', 0)) # Example: client might send duration
-                break_duration = int(data.get('break_duration', 0)) # Example
-                # print(f"TIMER DEBUG (Complete/No State): Attempting to log work session for user {user_id} without server state.")
-                new_session = PomodoroSession(
+                log_entry = PomodoroSession(
                     user_id=user_id,
-                    work_duration=work_duration,
-                    break_duration=break_duration,
-                    timestamp=now_utc # Log with current UTC time as best guess
+                    work_duration=server_state.work_duration_minutes,
+                    break_duration=server_state.break_duration_minutes,
+                    timestamp=server_state.start_time # Log with the actual start time of the work phase
                 )
-                db.session.add(new_session)
-                db.session.commit()
-                # print(f"TIMER DEBUG (Complete/No State): Logged session {new_session.id} for user {user_id}.")
-                return jsonify({'status': 'acknowledged_logged_no_state'}), 200
-            except Exception as e:
-                db.session.rollback()
-                print(f"ERROR (Complete/No State): Failed to log session for user {user_id}: {e}")
-                return jsonify({'status': 'acknowledged_log_failed_no_state'}), 200
-        else:
-             # If break completes without state, just acknowledge
-             return jsonify({'status': 'acknowledged_no_state'}), 200
+                db.session.add(log_entry)
+                current_app.logger.debug(f"API Complete: Prepared PomodoroSession log entry for User {user_id}.")
+            except Exception as log_err:
+                # If creating the log object fails (unlikely), log error but try to continue state transition.
+                current_app.logger.error(f"API Complete: Failed to create PomodoroSession object for User {user_id}: {log_err}", exc_info=True)
+                # Do not add the failed log_entry to the session.
 
-    # --- State exists, proceed ---
-    server_state = active_timers[user_id]
+            # --- Update server state to Break ---
+            break_minutes = server_state.break_duration_minutes
+            break_end_time_utc = now_utc + timedelta(minutes=break_minutes)
+            server_state.phase = 'break'
+            server_state.start_time = now_utc # Reset start time for the break phase
+            server_state.end_time = break_end_time_utc
+            current_app.logger.debug(f"API Complete: Updated timer state to BREAK for User {user_id}, ending at {break_end_time_utc.isoformat()}.")
 
-    # Optional Sanity check: does completed phase match server state?
-    if server_state.get('phase') != phase_completed:
-         # Optional: Keep this logging if helpful
-         # print(f"TIMER DEBUG (Complete): Phase mismatch for User {user_id}. Client says '{phase_completed}' done, server state is '{server_state.get('phase', 'unknown')}'. Trusting client.")
-         pass # Decide: Trust client? Return error? For now, trust client and proceed.
-
-    if phase_completed == 'work':
-        # Optional: Keep logging if helpful
-        # print(f"TIMER DEBUG (Complete): User {user_id} completed WORK phase.")
-        # --- Log the completed Work Session ---
-        try:
-            # Use durations stored in server state for accuracy
-            work_duration = server_state.get('work_duration_minutes', 0) # Default to 0 if missing
-            break_duration = server_state.get('break_duration_minutes', 0) # Default to 0 if missing
-            start_time = server_state.get('start_time', now_utc) # Use server start time if available
-
-            # *** Use the start_time which should be UTC aware from server_state ***
-            new_session = PomodoroSession(
-                user_id=user_id,
-                work_duration=work_duration,
-                break_duration=break_duration,
-                timestamp=start_time # Use the recorded start time of the work phase
-            )
-            db.session.add(new_session)
+            # Commit both the new session log (if successfully created) and the state update
             db.session.commit()
-            # Optional: Keep logging if helpful
-            # print(f"TIMER DEBUG (Complete): User {user_id} logged work session {new_session.id}.")
-        except Exception as e:
-            db.session.rollback()
-            print(f"ERROR (Complete): Failed to log session for user {user_id}: {e}")
-            # Decide if this should halt the process or just log error
+            current_app.logger.info(f"API Complete: User {user_id} successfully logged work session and transitioned to BREAK phase.")
+            return jsonify({'status': 'break_started'}), 200
 
-        # --- Update server state to Break ---
-        break_minutes = server_state.get('break_duration_minutes', 5) # Default if missing
-        break_end_time_utc = now_utc + timedelta(minutes=break_minutes)
-        active_timers[user_id]['phase'] = 'break'
-        active_timers[user_id]['end_time'] = break_end_time_utc
-        active_timers[user_id]['start_time'] = now_utc # Reset start time for the break phase
-        # Optional: Keep logging if helpful
-        # print(f"TIMER DEBUG (Complete): User {user_id} transitioning to BREAK phase. Server state: {active_timers.get(user_id)}")
+        elif phase_completed == 'break':
+            current_app.logger.info(f"API Complete: User {user_id} completed BREAK phase. Clearing timer state.")
+            # --- Clear server state ---
+            db.session.delete(server_state)
+            db.session.commit()
+            current_app.logger.info(f"API Complete: Cleared active timer state from DB for User {user_id}.")
+            return jsonify({'status': 'session_complete'}), 200
 
-        return jsonify({'status': 'break_started'}), 200
+        else:
+            # Should not happen if client sends 'work' or 'break'
+            current_app.logger.error(f"API Complete: User {user_id} sent an invalid phase '{phase_completed}'.")
+            return jsonify({'error': 'Invalid phase specified'}), 400
 
-    elif phase_completed == 'break':
-        # Optional: Keep logging if helpful
-        # print(f"TIMER DEBUG (Complete): User {user_id} completed BREAK phase. Session complete.")
-        # --- Clear server state ---
-        if user_id in active_timers: # Check again before deleting
-            del active_timers[user_id]
-            # Optional: Keep logging if helpful
-            # print(f"TIMER DEBUG (Complete): Cleared server state for user {user_id}.")
-        return jsonify({'status': 'session_complete'}), 200
-
-    else:
-        # Optional: Keep logging if helpful
-        # print(f"TIMER DEBUG (Complete): User {user_id} sent invalid phase '{phase_completed}'.")
-        return jsonify({'error': 'Invalid phase specified'}), 400
+    except SQLAlchemyError as e:
+        db.session.rollback() # Rollback on any DB error during processing
+        current_app.logger.error(f"API Complete: Database error for User {user_id} processing phase '{phase_completed}': {e}", exc_info=True)
+        return jsonify({'error': 'Database error occurred processing phase completion.'}), 500
+    except Exception as e:
+        db.session.rollback() # Rollback on any other unexpected error
+        current_app.logger.error(f"API Complete: Unexpected error for User {user_id} processing phase '{phase_completed}': {e}", exc_info=True)
+        return jsonify({'error': 'An unexpected server error occurred.'}), 500
 
 
-# +++ Updated API Endpoint for Chat +++
 @main.route('/api/chat', methods=['POST'])
 @login_required
-@limiter.limit("10 per minute") # Limit chat requests
+@limiter.limit("10 per minute")
 def api_chat():
+    """API endpoint for the AI productivity assistant chat."""
+    # Check if chat is enabled via app config (set based on API key presence)
+    if not current_app.config.get('FEATURE_CHAT_ENABLED', False):
+        current_app.logger.warning(f"API Chat: Attempt by User {current_user.id} when chat feature is disabled.")
+        return jsonify({'error': 'Chat feature is not configured or available.'}), 501 # 501 Not Implemented
+
     if not openai_client:
-        return jsonify({'error': 'Chat feature is not configured or OpenAI key is missing.'}), 501 # 501 Not Implemented
+        current_app.logger.error(f"API Chat: Attempt by User {current_user.id} but OpenAI client is not initialized (check API key and logs).")
+        return jsonify({'error': 'Chat service client is not available.'}), 503 # 503 Service Unavailable
 
     data = request.get_json()
     if not data or 'prompt' not in data or 'dashboard_data' not in data:
-        return jsonify({'error': 'Missing prompt or dashboard_data in request'}), 400
+         current_app.logger.warning(f"API Chat: Bad request from User {current_user.id}. Missing prompt or dashboard_data.")
+         return jsonify({'error': 'Missing prompt or dashboard_data in request'}), 400
 
-    user_prompt = data.get('prompt')
-    dashboard_data = data.get('dashboard_data', {}) # e.g., {'total_focus': 120, ...}
+    user_prompt = data.get('prompt', '').strip()
+    dashboard_data = data.get('dashboard_data', {}) # Expects dict like {'total_focus': '120', ...}
 
-    # --- *** CONSTRUCT ENHANCED CONTEXT FOR AI *** ---
+    if not user_prompt:
+         return jsonify({'error': 'Prompt cannot be empty.'}), 400
+
+    # Log the prompt (be mindful of sensitive info if prompts could contain it)
+    current_app.logger.info(f"API Chat: User {current_user.id} prompt (truncated): '{user_prompt[:100]}...'")
+
+    # --- Construct Enhanced Context for AI (Ensure data extraction is robust) ---
+    def get_data(key, default='N/A'):
+        # Helper to safely get data, handling potential missing keys or None values
+        val = dashboard_data.get(key)
+        return val if val is not None else default
+
     context = f"""
     You are a helpful productivity assistant integrated into a Pomodoro timer web app.
     The user '{current_user.name}' (ID: {current_user.id}) you are talking to has the following Pomodoro statistics:
 
     Overall Stats:
-    - Total Focused Time: {dashboard_data.get('total_focus', 'N/A')} minutes
-    - Total Break Time: {dashboard_data.get('total_break', 'N/A')} minutes
-    - Completed Pomodoro Sessions (Overall): {dashboard_data.get('total_sessions', 'N/A')}
+    - Total Focused Time: {get_data('total_focus')} minutes
+    - Total Break Time: {get_data('total_break')} minutes
+    - Completed Pomodoro Sessions (Overall): {get_data('total_sessions')}
 
     Today's Stats (UTC):
-    - Focused Time Today: {dashboard_data.get('today_focus', 'N/A')} minutes
-    - Sessions Today: {dashboard_data.get('today_sessions', 'N/A')}
+    - Focused Time Today: {get_data('today_focus')} minutes
+    - Sessions Today: {get_data('today_sessions')}
 
     This Week's Stats (UTC, starting Monday):
-    - Focused Time This Week: {dashboard_data.get('week_focus', 'N/A')} minutes
-    - Sessions This Week: {dashboard_data.get('week_sessions', 'N/A')}
+    - Focused Time This Week: {get_data('week_focus')} minutes
+    - Sessions This Week: {get_data('week_sessions')}
 
-    Answer the user's question based on this context and general productivity knowledge. Be encouraging and helpful. Keep responses concise.
+    Answer the user's question based ONLY on this provided context and general productivity knowledge related to the Pomodoro technique. Be encouraging and helpful. Keep responses concise and focused. Do not invent statistics not provided.
     """
-    # --- *** END OF ENHANCED CONTEXT *** ---
+    # --- End of Enhanced Context ---
 
     try:
         # Use the Chat Completions endpoint
         chat_completion = openai_client.chat.completions.create(
             messages=[
-                {
-                    "role": "system",
-                    "content": context,
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                }
+                {"role": "system", "content": context},
+                {"role": "user", "content": user_prompt}
             ],
-            model="gpt-4o-mini", # Or your preferred model
-            max_tokens=200, # Increased slightly for more context
-            temperature=0.7, # Adjust creativity vs factualness
+            model="gpt-4o-mini", # Or your preferred model like gpt-3.5-turbo
+            max_tokens=250, # Adjust as needed
+            temperature=0.6, # Balance creativity and factualness
+            user=f"user-{current_user.id}" # Optional: pass user ID for monitoring abuse
         )
 
         # Extract the response text
         ai_response = chat_completion.choices[0].message.content.strip()
-
+        current_app.logger.info(f"API Chat: OpenAI response generated successfully for User {current_user.id}.")
         return jsonify({'response': ai_response})
 
     except Exception as e:
-        print(f"Error calling OpenAI API: {e}")
-        # Avoid leaking detailed internal errors to the client unless necessary for debugging
-        # Consider logging the full error server-side and returning a generic message
-        return jsonify({'error': f'Sorry, I encountered an issue processing your request.'}), 500
+        # Catch generic OpenAI errors or network issues
+        current_app.logger.error(f"API Chat: Error calling OpenAI API for User {current_user.id}: {e}", exc_info=True)
+        # Avoid leaking detailed internal errors to the client
+        return jsonify({'error': 'Sorry, I encountered an issue while communicating with the AI service.'}), 500
 
 # --- End of API Endpoints ---
 
 
-# +++ Updated Dashboard Route +++
 @main.route('/dashboard')
 @login_required
 @limiter.limit("10 per minute")
 def dashboard():
     """Displays user dashboard with session history and stats."""
     user_id = current_user.id
+    current_app.logger.debug(f"Dashboard: Loading data for User {user_id}")
 
-    # --- Overall Stats ---
-    # Use func.sum for database-level aggregation, coalesce ensures 0 if no sessions
-    total_focus_query = db.session.query(func.coalesce(func.sum(PomodoroSession.work_duration), 0)).filter_by(user_id=user_id)
-    total_break_query = db.session.query(func.coalesce(func.sum(PomodoroSession.break_duration), 0)).filter_by(user_id=user_id)
-    total_sessions_query = db.session.query(func.count(PomodoroSession.id)).filter(
-        PomodoroSession.user_id == user_id,
-        PomodoroSession.work_duration > 0 # Only count sessions with focus time
-    )
+    try:
+        # --- Aggregate Stat Calculations (using SQLAlchemy functions) ---
+        total_focus_query = db.session.query(func.coalesce(func.sum(PomodoroSession.work_duration), 0)).filter_by(user_id=user_id)
+        total_break_query = db.session.query(func.coalesce(func.sum(PomodoroSession.break_duration), 0)).filter_by(user_id=user_id)
+        total_sessions_query = db.session.query(func.count(PomodoroSession.id)).filter(
+            PomodoroSession.user_id == user_id,
+            PomodoroSession.work_duration > 0 # Only count sessions with actual work time
+        )
 
-    total_focus = total_focus_query.scalar()
-    total_break = total_break_query.scalar()
-    total_sessions = total_sessions_query.scalar()
+        total_focus = total_focus_query.scalar()
+        total_break = total_break_query.scalar()
+        total_sessions = total_sessions_query.scalar()
+        current_app.logger.debug(f"Dashboard: User {user_id} Overall Stats - Focus: {total_focus}, Break: {total_break}, Sessions: {total_sessions}")
 
-    # --- Time-based Stats (Using UTC) ---
-    now_utc = datetime.now(timezone.utc)
-    today_start_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-    # Assuming Monday is the start of the week (weekday() == 0)
-    start_of_week_utc = today_start_utc - timedelta(days=now_utc.weekday())
+        # --- Time-based Stats (Using UTC) ---
+        now_utc = datetime.now(timezone.utc)
+        today_start_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        # Assuming Monday is the start of the week (weekday() == 0)
+        start_of_week_utc = today_start_utc - timedelta(days=now_utc.weekday())
 
-    # Today's Stats
-    today_focus_query = db.session.query(func.coalesce(func.sum(PomodoroSession.work_duration), 0)).filter(
-        PomodoroSession.user_id == user_id,
-        PomodoroSession.timestamp >= today_start_utc
-    )
-    today_sessions_query = db.session.query(func.count(PomodoroSession.id)).filter(
-        PomodoroSession.user_id == user_id,
-        PomodoroSession.work_duration > 0,
-        PomodoroSession.timestamp >= today_start_utc
-    )
-    today_focus = today_focus_query.scalar()
-    today_sessions = today_sessions_query.scalar()
+        # Today's Stats
+        today_focus = db.session.query(func.coalesce(func.sum(PomodoroSession.work_duration), 0)).filter(
+            PomodoroSession.user_id == user_id,
+            PomodoroSession.timestamp >= today_start_utc
+        ).scalar()
+        today_sessions = db.session.query(func.count(PomodoroSession.id)).filter(
+            PomodoroSession.user_id == user_id,
+            PomodoroSession.work_duration > 0,
+            PomodoroSession.timestamp >= today_start_utc
+        ).scalar()
+        current_app.logger.debug(f"Dashboard: User {user_id} Today Stats - Focus: {today_focus}, Sessions: {today_sessions}")
 
-    # This Week's Stats
-    week_focus_query = db.session.query(func.coalesce(func.sum(PomodoroSession.work_duration), 0)).filter(
-        PomodoroSession.user_id == user_id,
-        PomodoroSession.timestamp >= start_of_week_utc
-    )
-    week_sessions_query = db.session.query(func.count(PomodoroSession.id)).filter(
-        PomodoroSession.user_id == user_id,
-        PomodoroSession.work_duration > 0,
-        PomodoroSession.timestamp >= start_of_week_utc
-    )
-    week_focus = week_focus_query.scalar()
-    week_sessions = week_sessions_query.scalar()
 
-    # --- Fetch Session History (with timezone fix from before) ---
-    # Limiting the history fetched can improve performance if list becomes huge
-    # sessions_from_db = PomodoroSession.query.filter_by(user_id=user_id).order_by(PomodoroSession.timestamp.desc()).limit(100).all() # Example limit
-    sessions_from_db = PomodoroSession.query.filter_by(user_id=user_id).order_by(PomodoroSession.timestamp.desc()).all()
+        # This Week's Stats
+        week_focus = db.session.query(func.coalesce(func.sum(PomodoroSession.work_duration), 0)).filter(
+            PomodoroSession.user_id == user_id,
+            PomodoroSession.timestamp >= start_of_week_utc
+        ).scalar()
+        week_sessions = db.session.query(func.count(PomodoroSession.id)).filter(
+            PomodoroSession.user_id == user_id,
+            PomodoroSession.work_duration > 0,
+            PomodoroSession.timestamp >= start_of_week_utc
+        ).scalar()
+        current_app.logger.debug(f"Dashboard: User {user_id} Week Stats - Focus: {week_focus}, Sessions: {week_sessions}")
 
-    aware_sessions = []
-    for sess in sessions_from_db:
-        if sess.timestamp and getattr(sess.timestamp, 'tzinfo', None) is None:
-            # Apply timezone only if it's naive (likely from SQLite)
-            try:
-                sess.timestamp = sess.timestamp.replace(tzinfo=timezone.utc)
-            except Exception as e:
-                # Log error if replace fails
-                print(f"ERROR: Could not make timestamp aware for session {sess.id}: {e}")
-                # Pass the session with the naive timestamp anyway
-        aware_sessions.append(sess)
 
-    # Pass the flag indicating if chat is enabled
-    chat_enabled = bool(openai_client)
+        # --- Fetch Session History ---
+        # Limiting the history fetched can improve performance if list becomes huge
+        # sessions_from_db = PomodoroSession.query.filter_by(user_id=user_id).order_by(PomodoroSession.timestamp.desc()).limit(100).all() # Example limit
+        sessions_from_db = PomodoroSession.query.filter_by(user_id=user_id).order_by(PomodoroSession.timestamp.desc()).all()
+        current_app.logger.debug(f"Dashboard: Fetched {len(sessions_from_db)} session history entries for User {user_id}")
 
-    # 3. Pass all stats and session list to the template.
+        # Apply timezone info if needed (primarily for SQLite)
+        aware_sessions = []
+        for sess in sessions_from_db:
+            # Check if timestamp exists and is naive
+            if sess.timestamp and getattr(sess.timestamp, 'tzinfo', None) is None:
+                try:
+                    # Assume naive timestamps from SQLite are UTC
+                    sess.timestamp = sess.timestamp.replace(tzinfo=timezone.utc)
+                except Exception as tz_err:
+                    # Log error if replace fails, pass the session with naive timestamp
+                    current_app.logger.error(f"Dashboard: Could not make timestamp timezone-aware for session {sess.id}: {tz_err}")
+            aware_sessions.append(sess)
+
+    except SQLAlchemyError as e:
+        current_app.logger.error(f"Dashboard: Database error loading stats/history for User {user_id}: {e}", exc_info=True)
+        # Render dashboard with potentially incomplete data or error message?
+        # For now, set defaults and let template handle missing data gracefully.
+        total_focus, total_break, total_sessions = 0, 0, 0
+        today_focus, today_sessions = 0, 0
+        week_focus, week_sessions = 0, 0
+        aware_sessions = []
+        # Optionally flash a message to the user
+        # flash('Could not load all dashboard data due to a database error.', 'error')
+    except Exception as e:
+         current_app.logger.error(f"Dashboard: Unexpected error loading data for User {user_id}: {e}", exc_info=True)
+         total_focus, total_break, total_sessions = 0, 0, 0
+         today_focus, today_sessions = 0, 0
+         week_focus, week_sessions = 0, 0
+         aware_sessions = []
+         # flash('An unexpected error occurred while loading the dashboard.', 'error')
+
+
+    # Get chat enabled status from app config
+    chat_enabled = current_app.config.get('FEATURE_CHAT_ENABLED', False)
+    current_app.logger.debug(f"Dashboard: Rendering for User {user_id}. Chat enabled: {chat_enabled}")
+
+    # Pass all stats and session list to the template.
     return render_template('main/dashboard.html',
                            # Overall
                            total_focus=total_focus,
@@ -366,26 +414,3 @@ def dashboard():
                            # History & Config
                            sessions=aware_sessions, # Use the processed list
                            chat_enabled=chat_enabled) # Pass the flag
-
-
-# Helper function example (not actively used by routes above but kept for reference)
-def get_timer_status_for_user(user_id):
-    """Helper function to get current timer status based on server state."""
-    if user_id in active_timers:
-        state = active_timers[user_id]
-        now_utc = datetime.now(timezone.utc)
-        # Ensure end_time exists and is a datetime before comparison
-        if 'end_time' in state and isinstance(state['end_time'], datetime):
-             remaining_seconds = (state['end_time'] - now_utc).total_seconds()
-        else:
-             remaining_seconds = -1 # Indicate an issue or unknown state
-             print(f"Warning: Invalid or missing 'end_time' in active_timers for user {user_id}")
-
-        return {
-            'status': 'active',
-            'phase': state.get('phase', 'unknown'),
-            'remaining_seconds': max(0, remaining_seconds) if remaining_seconds >= 0 else 0,
-            'server_end_time_utc': state['end_time'].isoformat() if 'end_time' in state and isinstance(state['end_time'], datetime) else None
-        }
-    else:
-        return {'status': 'inactive'}
