@@ -3,12 +3,14 @@
 /* Basic resets and typography */
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   background: #f9f9f9;
   color: #333;
+  line-height: 1.6; /* Improve default line spacing */
 }
 h1, h2, h3 {
   color: #444;
+  line-height: 1.3;
 }
 a { color: #007BFF; text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -18,40 +20,47 @@ a:hover { text-decoration: underline; }
   background: #343a40;
   color: #fff;
   padding: 0.5em 1em;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Add subtle shadow */
 }
 .navbar .container {
-    display: flex; /* Use flexbox for alignment */
-    justify-content: space-between; /* Space brand and links */
-    align-items: center; /* Vertically align items */
-    flex-wrap: wrap; /* Allow wrapping on small screens */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
 }
 .navbar .brand {
   font-weight: bold;
+  font-size: 1.2em;
+  color: #fff; /* Ensure brand is white */
 }
 .navbar .nav-links {
-    display: flex; /* Use flex for links too */
-    gap: 1em; /* Space between links */
+    display: flex;
+    gap: 1.2em; /* Slightly more space */
 }
 .navbar .nav-links a {
-  color: #76c2f1;
-  /* color: #fff; */
-  /* margin-right: 1em; Removed in favor of gap */
+  color: #dee2e6; /* Lighter gray for links */
+  transition: color 0.2s ease;
 }
-/* .navbar .nav-links a:last-child { Removed } */
+.navbar .nav-links a:hover {
+    color: #fff; /* White on hover */
+    text-decoration: none;
+}
 
 /* Container */
 .container {
-  max-width: 960px; /* Slightly wider for better column layout */
-  margin: auto;
+  max-width: 960px;
+  margin: 1.5em auto; /* Add top/bottom margin */
   padding: 1em;
 }
 
 /* Flash messages */
+.flash-messages {
+    margin-bottom: 1.5em; /* More space below flashes */
+}
 .flash-messages .flash {
-  padding: 0.75em 1.25em; /* Slightly more padding */
-  margin-bottom: 1em;
+  padding: 0.8em 1.3em;
   border-radius: 4px;
-  border: 1px solid transparent; /* Base border */
+  border: 1px solid transparent;
 }
 .flash.error { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
 .flash.success { background: #d4edda; color: #155724; border-color: #c3e6cb; }
@@ -59,235 +68,383 @@ a:hover { text-decoration: underline; }
 
 /* Forms */
 .form-group {
-  margin-bottom: 1em;
+  margin-bottom: 1.2em; /* More space between form groups */
 }
-.form-group label { /* Style labels */
+.form-group label {
     display: block;
-    margin-bottom: 0.3em;
-    font-weight: bold;
+    margin-bottom: 0.4em; /* More space below label */
+    font-weight: 600; /* Slightly bolder label */
+    color: #495057;
 }
 .input, .checkbox {
-  padding: 0.5em; /* Slightly larger padding */
+  padding: 0.6em 0.8em; /* Adjusted padding */
   font-size: 1em;
   width: 100%;
-  max-width: 350px; /* Slightly wider max width */
+  max-width: 400px; /* Slightly wider max width for inputs */
   box-sizing: border-box;
-  /* margin-top: 0.2em; Removed, handled by label margin */
-  border: 1px solid #ccc; /* Add border */
-  border-radius: 3px;
+  border: 1px solid #ced4da; /* Standard border color */
+  border-radius: 4px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 .checkbox {
-    width: auto; /* Checkboxes shouldn't be full width */
-    margin-right: 0.5em; /* Space between checkbox and its label text */
+    width: auto;
+    margin-right: 0.5em;
+    vertical-align: middle; /* Align checkbox nicely */
 }
-.form-group .error { /* Style validation errors */
+.form-group .error {
     color: #dc3545;
     font-size: 0.9em;
-    margin-top: 0.2em;
+    margin-top: 0.3em;
     display: block;
 }
 
 .btn {
-  padding: 0.6em 1.5em; /* Slightly taller buttons */
+  padding: 0.6em 1.5em;
   font-size: 1em;
+  font-weight: 600; /* Bolder button text */
   cursor: pointer;
   background: #007BFF;
   color: #fff;
   border: none;
-  border-radius: 3px;
-  transition: background-color 0.2s ease; /* Add smooth hover transition */
-  display: inline-block; /* Ensure buttons behave predictably */
+  border-radius: 4px;
+  transition: background-color 0.2s ease, box-shadow 0.15s ease-in-out;
+  display: inline-block;
   text-align: center;
+  vertical-align: middle; /* Ensure alignment */
+  user-select: none; /* Prevent text selection */
 }
 .btn:hover {
   background: #0056b3;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
-.btn:disabled { /* Style for disabled buttons */
+.btn:active {
+    background: #004085; /* Darker on click */
+}
+.btn:disabled {
     background: #cccccc;
     cursor: not-allowed;
-    opacity: 0.7;
+    opacity: 0.65;
+    box-shadow: none;
 }
 
 
-/* Timer page */
+/* Timer page Specific Styles */
+#timer-component {
+    max-width: 700px; /* Center the whole component */
+    margin: 2em auto;
+    padding: 1.5em 2em;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Points and Multiplier Info */
+.points-display-container,
+.active-multiplier-container {
+    text-align: center;
+    margin-bottom: 1em;
+    font-size: 1.2em; /* Base size */
+    color: #555;
+}
+
+.points-display-container span:first-child,
+.active-multiplier-container span:first-child {
+    font-weight: 500; /* Medium weight label */
+    margin-right: 0.5em;
+    color: #6c757d; /* Grayer label */
+}
+
+.total-points {
+    font-weight: 700; /* Bold */
+    color: #198754; /* Bootstrap success green */
+    font-size: 1.6em;
+    vertical-align: middle;
+    margin-left: 0.1em; /* Small spacing */
+}
+
+.active-multiplier {
+    font-weight: 700;
+    color: #fd7e14; /* Bootstrap orange */
+    font-size: 1.4em;
+    vertical-align: middle;
+    margin-left: 0.1em;
+}
+.active-multiplier .multiplier-context { /* Span inside multiplier */
+    font-size: 0.7em; /* Smaller context text */
+    font-weight: 500;
+    color: #6c757d;
+    margin-left: 0.4em;
+    vertical-align: middle; /* Align context text */
+    display: inline-block; /* Needed for vertical align */
+}
+
+
+/* Timer Controls */
 .timer-controls {
+    margin-top: 1.5em;
     margin-bottom: 1.5em;
     display: flex;
-    flex-direction: column; /* Stack setup and buttons */
-    gap: 1em;
+    flex-direction: column;
+    align-items: center; /* Center controls */
+    gap: 1.2em;
 }
 .timer-setup {
-  display: flex; /* Align labels/inputs horizontally */
-  gap: 1em;
-  flex-wrap: wrap; /* Allow wrapping */
+  display: flex;
+  gap: 1.5em;
+  flex-wrap: wrap;
+  justify-content: center; /* Center setup items */
 }
 .timer-setup label {
-  display: flex; /* Align label text and input */
+  display: flex;
   align-items: center;
   gap: 0.5em;
+  font-weight: 500;
 }
 .timer-setup input[type="number"] {
-    width: 60px; /* Fixed width for number inputs */
-    padding: 0.4em;
-    border: 1px solid #ccc;
-    border-radius: 3px;
+    width: 70px; /* Slightly wider number input */
+    padding: 0.5em;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    text-align: center;
 }
 .timer-buttons {
     display: flex;
-    gap: 0.8em; /* Space between buttons */
+    gap: 1em; /* Space between buttons */
 }
+
+/* Timer Display */
 .timer-display {
-  font-size: 3em; /* Larger timer display */
-  font-weight: bold;
-  margin: 0.5em 0; /* Adjusted margin */
-  color: #333;
-  text-align: center; /* Center the timer */
+  font-size: 4.5em; /* Even larger timer display */
+  font-weight: 700; /* Bold */
+  margin: 0.3em 0; /* Adjusted margin */
+  color: #343a40; /* Darker timer color */
+  text-align: center;
+  font-family: 'Courier New', Courier, monospace; /* Monospace font */
+  letter-spacing: -2px; /* Tighten spacing slightly */
 }
+
+/* Status Message */
 .status-message {
   font-size: 1.1em;
-  margin: 0.5em 0 1em 0; /* Adjusted margin */
-  color: #d63384; /* A noticeable color */
-  text-align: center; /* Center status message */
-  min-height: 1.3em; /* Prevent layout shifts */
+  margin: 0.5em 0 1.5em 0; /* Adjusted margin */
+  color: #dc3545; /* Bootstrap danger red for status/alerts */
+  text-align: center;
+  min-height: 1.4em; /* Prevent layout shifts */
+  font-weight: 500;
 }
 
-/* Dashboard Styles */
 
-/* +++ Styles for Stats Columns +++ */
+/* Multiplier Rules Table */
+.multiplier-rules-container {
+    margin-top: 3em; /* More space above rules */
+    padding: 1.2em 1.8em;
+    border: 1px solid #e9ecef; /* Lighter border */
+    border-radius: 6px;
+    background-color: #f8f9fa;
+    max-width: 100%; /* Allow full width within timer component */
+}
+
+.multiplier-rules-container h3 {
+    margin-top: 0;
+    margin-bottom: 0.6em;
+    text-align: center;
+    color: #495057;
+    font-size: 1.3em;
+    font-weight: 600;
+}
+.multiplier-rules-container > p { /* Intro/outro paragraphs */
+    font-size: 0.95em;
+    color: #6c757d;
+    margin-bottom: 1.2em;
+    text-align: center;
+}
+.multiplier-rules-container em { /* Note */
+     display: block;
+     text-align: center;
+     margin-top: 1em;
+     font-size: 0.9em;
+     color: #6c757d;
+}
+
+.multiplier-rules-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95em; /* Slightly larger table font */
+}
+
+.multiplier-rules-table thead th {
+    background-color: #e9ecef;
+    text-align: left;
+    padding: 0.7em 0.9em;
+    border-bottom: 2px solid #dee2e6; /* Slightly darker bottom border */
+    color: #495057;
+    font-weight: 600;
+}
+
+.multiplier-rules-table tbody td {
+    padding: 0.7em 0.9em;
+    border-bottom: 1px solid #dee2e6;
+    vertical-align: top;
+}
+.multiplier-rules-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.multiplier-rules-table tbody tr.base-rate td {
+    font-weight: 600;
+}
+.multiplier-rules-table td:nth-child(1) { /* Condition column */
+    font-weight: 500;
+}
+.multiplier-rules-table td:nth-child(2) { /* Bonus column */
+    font-weight: 700;
+    color: #fd7e14; /* Orange bonus */
+    white-space: nowrap;
+    text-align: center;
+}
+.multiplier-rules-table td:nth-child(3) { /* Details column */
+    color: #495057; /* Darker gray for details */
+    font-size: 0.95em;
+}
+
+
+/* Dashboard Styles (Copied from previous state for completeness) */
+
+/* Stats Columns */
 .stats-columns-container {
-  display: flex;            /* Enable Flexbox */
-  flex-wrap: wrap;        /* Allow columns to wrap on small screens */
-  gap: 1.5em;             /* Increased space between columns */
-  margin-bottom: 2em;     /* Increased space below the entire stats section */
-  /* justify-content: space-between; -- Let flex:1 handle spacing */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5em;
+  margin-bottom: 2em;
 }
 
 .stats-column {
-  flex: 1;                /* Each column tries to take equal space */
-  min-width: 220px;       /* Minimum width before wrapping (adjust as needed) */
-  padding: 1em;           /* Padding inside each column */
-  border: 1px solid #e0e0e0; /* Border for visual separation */
-  border-radius: 5px;     /* Rounded corners */
-  background-color: #fff; /* White background for columns */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */
+  flex: 1;
+  min-width: 220px;
+  padding: 1.2em; /* Slightly more padding */
+  border: 1px solid #e0e0e0;
+  border-radius: 6px; /* Slightly more rounded */
+  background-color: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.06); /* Slightly enhanced shadow */
 }
 
 .stats-column h3 {
-  margin-top: 0;          /* Remove default top margin */
-  border-bottom: 1px solid #eee; /* Separator below title */
-  padding-bottom: 0.5em;
-  margin-bottom: 0.8em;   /* Space below title */
-  font-size: 1.1em;       /* Slightly smaller heading */
-  color: #555;
+  margin-top: 0;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.6em;
+  margin-bottom: 1em;
+  font-size: 1.15em; /* Slightly larger heading */
+  font-weight: 600;
+  color: #495057;
 }
-/* +++ End Stats Column Styles +++ */
-
-
 /* Individual Stats List */
 .stats {
   list-style: none;
   padding-left: 0;
-  margin-bottom: 0; /* Remove default bottom margin */
+  margin-bottom: 0;
 }
 .stats li {
-  margin-bottom: 0.6em; /* Slightly more space between list items */
-  line-height: 1.4;   /* Improve readability */
+  margin-bottom: 0.7em; /* More space between stats */
+  line-height: 1.5;
+  font-size: 0.95em;
 }
 .stats li strong {
-    color: #333; /* Make the label slightly darker */
+    color: #343a40; /* Darker label */
+    margin-right: 0.4em;
+    display: inline-block; /* Ensure consistent spacing */
+    min-width: 150px; /* Align values somewhat */
 }
 
-
-/* Scrollable Sessions Table Container */
-.sessions-table-container {
-  max-height: 300px; /* Adjust height as needed (approx 7-8 rows) */
-  overflow-y: auto;  /* Vertical scrollbar only when needed */
-  border: 1px solid #ddd;
-  margin-bottom: 1.5em; /* Space below the table before the chat */
-  border-radius: 3px; /* Optional: match other elements */
-}
 
 /* Sessions Table */
+.sessions-table-container {
+  max-height: 350px; /* Slightly taller scroll area */
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  margin-bottom: 2em;
+  border-radius: 5px;
+}
 .sessions-table {
   width: 100%;
   border-collapse: collapse;
 }
-/* Sticky Header for scrollable table */
 .sessions-table thead th {
-  position: sticky; /* Make the header sticky */
-  top: 0;           /* Stick to the top of the scrollable container */
-  background: #e9ecef; /* Ensure header has background to hide scrolling content */
-  z-index: 1;       /* Ensure header stays above table body content */
-  /* Optional: Add bottom border to sticky header for definition */
-  border-bottom: 2px solid #ccc;
+  position: sticky;
+  top: 0;
+  background: #e9ecef;
+  z-index: 1;
+  border-bottom: 2px solid #ced4da; /* Stronger header border */
 }
 .sessions-table th, .sessions-table td {
-  /* Adjusted borders slightly for sticky header setup */
-  border-left: 1px solid #ddd;
-  border-right: 1px solid #ddd;
-  border-bottom: 1px solid #ddd;
-  border-top: none; /* Top border handled by bottom border of row above or header */
-  padding: 0.6em; /* Slightly more padding */
-  text-align: center;
-  font-size: 0.95em; /* Slightly smaller font in table */
+  border: 1px solid #dee2e6; /* Use consistent border color */
+  padding: 0.7em; /* More padding */
+  text-align: left; /* Left align text */
+  font-size: 0.95em;
 }
 .sessions-table th {
-  font-weight: bold;
-  color: #495057;
+    padding: 0.8em 0.7em; /* More padding for header */
+    font-weight: 600;
+    color: #495057;
+}
+.sessions-table td:nth-child(2), /* Work */
+.sessions-table td:nth-child(3) { /* Break */
+  text-align: right; /* Right align numbers */
 }
 .sessions-table tr:nth-child(even) {
-  background: #f8f9fa; /* Use a slightly different even row color */
+  background: #f8f9fa;
 }
-.sessions-table tr:hover { /* Add hover effect */
+.sessions-table tr:hover {
     background-color: #f1f1f1;
 }
 
 
 /* Chat Agent Styles */
 .chat-agent-section {
-  margin-top: 2em;
-  padding: 1.5em; /* More padding */
-  border: 1px solid #ddd;
+  margin-top: 2.5em;
+  padding: 1.5em;
+  border: 1px solid #dee2e6;
   background-color: #fff;
-  border-radius: 5px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.07); /* Slightly stronger shadow */
+  border-radius: 6px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.07);
 }
-
 .chat-agent-section.disabled p {
     color: #888;
     font-style: italic;
 }
 .chat-agent-section h3 {
     margin-top: 0;
-    margin-bottom: 0.5em;
+    margin-bottom: 0.7em;
+    font-weight: 600;
+    font-size: 1.2em;
 }
-.chat-agent-section > p { /* Style the intro paragraph */
+.chat-agent-section > p {
     margin-top: 0;
-    margin-bottom: 1em;
-    color: #666;
+    margin-bottom: 1.2em;
+    color: #6c757d;
 }
-
 .chat-log {
-  height: 300px; /* Increased height */
+  height: 320px; /* Increased height */
   overflow-y: auto;
-  border: 1px solid #eee;
-  padding: 1em; /* Increased padding */
-  margin-bottom: 1em;
+  border: 1px solid #e9ecef;
+  padding: 1em;
+  margin-bottom: 1.2em;
   background-color: #f8f9fa;
-  border-radius: 3px;
+  border-radius: 4px;
 }
-
 .chat-log .message {
-  margin-bottom: 0.8em; /* Increased spacing */
-  padding: 0.6em 1.1em; /* Adjusted padding */
+  margin-bottom: 0.9em;
+  padding: 0.7em 1.2em;
   border-radius: 18px;
   max-width: 85%;
-  line-height: 1.45; /* Improved line height */
+  line-height: 1.5;
   word-wrap: break-word;
   clear: both;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
-
 .chat-log .message.user {
   background-color: #007bff;
   color: white;
@@ -295,88 +452,114 @@ a:hover { text-decoration: underline; }
   float: right;
   border-bottom-right-radius: 5px;
 }
-
 .chat-log .message.ai {
   background-color: #e9ecef;
-  color: #333;
+  color: #343a40;
   margin-right: auto;
   float: left;
   border-bottom-left-radius: 5px;
 }
-
-
 .chat-input-area {
   display: flex;
-  gap: 0.5em;
+  gap: 0.7em;
   margin-top: 1em;
 }
-
 #chat-input {
   flex-grow: 1;
-  padding: 0.7em; /* Increased padding */
-  border: 1px solid #ccc;
-  border-radius: 3px;
+  padding: 0.7em;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
   font-size: 1em;
 }
  #chat-input:disabled {
-      background-color: #e9ecef; /* Indicate disabled state */
+      background-color: #e9ecef;
       cursor: not-allowed;
   }
-
 #chat-send-btn {
-    flex-shrink: 0; /* Prevent button from shrinking */
+    flex-shrink: 0;
 }
-
 .chat-status {
     font-size: 0.9em;
-    color: #666;
-    margin-top: 0.7em; /* Increased space */
-    min-height: 1.2em; /* Prevent layout shift */
+    color: #6c757d;
+    margin-top: 0.8em;
+    min-height: 1.2em;
     font-style: italic;
 }
 
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-   /* Adjust column behavior if needed before stacking */
    .stats-column {
-       min-width: 45%; /* Example: allow two columns side-by-side longer */
+       min-width: 45%;
    }
+    .timer-display {
+        font-size: 4em;
+    }
 }
 
 @media (max-width: 600px) {
-  /* Navbar adjustments */
   .navbar .container {
       flex-direction: column;
       align-items: flex-start;
   }
   .navbar .nav-links {
-    margin-top: 0.5em;
-    width: 100%; /* Make links take full width */
+    margin-top: 0.7em;
+    width: 100%;
     justify-content: flex-start;
+    gap: 1em;
   }
-  /* Stack timer setup */
+
+  #timer-component {
+      padding: 1em;
+      margin: 1em auto;
+  }
+   .timer-display {
+       font-size: 3.5em;
+   }
+   .total-points { font-size: 1.4em; }
+   .active-multiplier { font-size: 1.2em; }
+
   .timer-setup {
       flex-direction: column;
-      align-items: stretch; /* Make labels full width */
+      align-items: stretch;
+      gap: 0.8em;
   }
    .timer-setup input[type="number"] {
-       width: auto; /* Allow number input to grow */
+       width: 100%; /* Full width on small screens */
+       padding: 0.6em;
    }
+    .timer-buttons {
+        flex-direction: column; /* Stack buttons */
+        align-items: stretch; /* Make buttons full width */
+    }
 
-  /* Stack stats columns */
   .stats-columns-container {
        flex-direction: column;
-       gap: 1em; /* Adjust gap for stacked */
+       gap: 1em;
   }
    .stats-column {
-       min-width: 95%; /* Take up most width when stacked */
+       min-width: 95%;
    }
 
   .chat-log .message {
       max-width: 90%;
   }
   .container {
-      padding: 0.8em; /* Slightly adjust padding */
+      padding: 0.8em;
+      margin: 1em auto;
   }
+
+  .multiplier-rules-container {
+     padding: 0.8em;
+  }
+  .multiplier-rules-table {
+      font-size: 0.9em;
+  }
+   .multiplier-rules-table thead th,
+   .multiplier-rules-table tbody td {
+       padding: 0.6em 0.5em;
+   }
+   .multiplier-rules-table td:nth-child(3) { /* Details */
+       font-size: 0.9em; /* Slightly smaller details on mobile */
+   }
 }

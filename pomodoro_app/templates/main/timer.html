@@ -2,10 +2,17 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <h2>Start a Pomodoro Session</h2>
+  <h2>Pomodoro Session</h2> {# Changed heading slightly #}
 
-  {# Add a container div if needed, or use an existing one #}
+  {# Container for the timer component #}
   <div id="timer-component">
+
+    <!-- +++ Points Display +++ -->
+    <div class="points-display-container">
+        <span>Total Points:</span>
+        {# Use toLocaleString() in JS for formatting #}
+        <span id="total-points-display" class="total-points">{{ total_points | int }}</span>
+    </div>
 
     <div class="timer-controls">
       <div class="timer-setup">
@@ -20,30 +27,92 @@
     </div>
 
     <div id="timer-display" class="timer-display">00:00</div>
-    <div id="status-message" class="status-message">Set durations and click Start.</div>
+    <div id="status-message" class="status-message" aria-live="polite">Set durations and click Start.</div> {# Added aria-live #}
 
     <!-- Audio element for alarm -->
     <audio id="alarm-sound" src="{{ url_for('static', filename='alarm.mp3') }}" preload="auto"></audio>
 
+    <!-- +++ Active Multiplier Display +++ -->
+    <div class="active-multiplier-container">
+        <span>Active Multiplier:</span>
+        <span id="active-multiplier-display" class="active-multiplier">
+            {{ active_multiplier | round(1) }}x {# Display initial value rounded #}
+            {# Add context based on initial state #}
+            {% if active_state_info and active_state_info.phase == 'break' %}
+                <span class="multiplier-context">(Break Rate)</span>
+            {% elif not active_state_info %}
+                <span class="multiplier-context">(Next Session)</span>
+            {% endif %}
+        </span>
+    </div>
+
+    <!-- +++ Multiplier Explanation Table +++ -->
+    <div class="multiplier-rules-container">
+        <h3>Multiplier Rules</h3>
+        <p>Earn bonuses for consistency and focus during <strong>Work</strong> phases. Base rate is {{ config.get('POINTS_PER_MINUTE', 10) }} points/minute for Work & Break.</p>
+        <table class="multiplier-rules-table">
+            <thead>
+                <tr>
+                    <th>Condition</th>
+                    <th>Bonus</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in multiplier_rules %}
+                {# Highlight base rate slightly differently? #}
+                <tr class="{{ 'base-rate' if rule.id == 'base' else '' }}">
+                    <td>{{ rule.condition }}</td>
+                    <td>
+                        {% if rule.bonus > 0 %}
+                           +{{ rule.bonus | round(1) }}x
+                        {% elif rule.id == 'base' %}
+                            1.0x Base
+                        {% else %}
+                            - {# Or indicate N/A #}
+                        {% endif %}
+                    </td>
+                    <td>{{ rule.details }}</td>
+                </tr>
+                {% endfor %}
+                {# Optional: Add a row for max multiplier if capped #}
+                {#
+                <tr>
+                    <td><strong>Max Possible (Example)</strong></td>
+                    <td><strong>2.0x</strong></td>
+                    <td>Maximum combined bonus.</td>
+                </tr>
+                 #}
+            </tbody>
+        </table>
+        <p><em>Note: Highest applicable bonus from streaks and duration typically applies. Bonuses stack additively.</em></p> {# Updated note slightly #}
+    </div>
+
+
   </div> {# End of timer-component div #}
 
-  {#
-     Inline script to pass dynamic URLs from Flask/Jinja2 to the static JS file.
-     Place this *before* the main timer.js script tag.
-  #}
+  {# Inline script to pass dynamic data from Flask/Jinja2 to the static JS file. #}
   <script>
-    window.pomodoroUrls = {
-      start: "{{ url_for('main.api_start_timer') }}",
-      complete: "{{ url_for('main.api_complete_phase') }}"
+    // Use a global configuration object
+    window.pomodoroConfig = {
+      apiUrls: {
+        start: "{{ url_for('main.api_start_timer') }}",
+        complete: "{{ url_for('main.api_complete_phase') }}"
+        // Add other API endpoints here if needed
+      },
+      initialData: {
+        totalPoints: {{ total_points | int }}, // Pass initial points as integer
+        activeMultiplier: {{ active_multiplier | float }}, // Pass initial multiplier as float
+        // Pass active state details if they exist, otherwise null
+        // Use tojson filter for safe JSON embedding
+        activeState: {{ active_state_info | tojson | safe if active_state_info else 'null' }}
+      },
+      // Optionally pass constants like points per minute if needed in JS
+      // pointsPerMinute: {{ config.get('POINTS_PER_MINUTE', 10) }}
     };
   </script>
 
-  {# Link to the external JavaScript file. 'defer' is recommended. #}
+  {# Link to the external JavaScript file. 'defer' ensures it runs after HTML parsing. #}
   <script src="{{ url_for('static', filename='js/timer.js') }}" defer></script>
 
 {% endblock %}
-
-{# Optional: You could also place the script tags at the end of the body in base.html
-   if you prefer that pattern, just make sure the inline URL script comes before
-   the timer.js link.
-#}
