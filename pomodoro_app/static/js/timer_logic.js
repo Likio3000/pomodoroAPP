@@ -10,7 +10,8 @@ window.PomodoroLogic = (function() {
     let remainingSeconds = 0;
     let phase = 'idle'; // 'idle', 'work', 'break', 'paused'
     let prePausePhase = null;
-    let serverEndTimeUTC = null; // Store expected end time from server
+    let serverEndTimeUTC = null; // Store expected end time from server (ISO String)
+    let pauseStartTime = null; // Timestamp (ms) when pause began
 
     // Durations, points, multiplier - initialized by loadState or init
     let workDurationMinutes = 25;
@@ -51,10 +52,13 @@ window.PomodoroLogic = (function() {
     }
 
     function tick() {
+        // Calculate remaining time based on adjusted serverEndTimeUTC
         if (serverEndTimeUTC) {
-            const now = new Date();
-            remainingSeconds = Math.max(0, Math.floor((new Date(serverEndTimeUTC) - now) / 1000));
+            const now = Date.now(); // Use ms for more precise calculation base
+            const endTimeMs = new Date(serverEndTimeUTC).getTime();
+            remainingSeconds = Math.max(0, Math.floor((endTimeMs - now) / 1000));
         } else if (remainingSeconds > 0) {
+             // Fallback ONLY if serverEndTimeUTC isn't set (shouldn't happen in normal flow)
              remainingSeconds--;
         } else {
              remainingSeconds = 0;
@@ -76,22 +80,36 @@ window.PomodoroLogic = (function() {
         if (phase === 'idle') {
             runningPhase = 'work'; // API response sets remaining seconds / end time
         } else if (phase === 'paused') {
-            runningPhase = prePausePhase || 'work';
-            // serverEndTimeUTC should be correct from load or API response
+             // --- Adjust serverEndTimeUTC on Resume ---
+             if (pauseStartTime && serverEndTimeUTC) {
+                 const pauseDurationMs = Date.now() - pauseStartTime;
+                 if (pauseDurationMs > 100) { // Only adjust if pause was significant (e.g., > 100ms)
+                     const currentEndTime = new Date(serverEndTimeUTC);
+                     const newEndTime = new Date(currentEndTime.getTime() + pauseDurationMs);
+                     serverEndTimeUTC = newEndTime.toISOString(); // Update with adjusted time
+                     console.log(`Resumed. Adjusted serverEndTimeUTC by ${Math.round(pauseDurationMs/1000)}s to: ${serverEndTimeUTC}`);
+                 }
+                 pauseStartTime = null; // Clear pause start time
+             }
+             // --- End Adjust ---
+             runningPhase = prePausePhase || 'work'; // Determine phase to resume
         }
 
         phase = runningPhase;
         prePausePhase = null;
 
-        updateUIDisplays(); // Update display immediately
-        saveState(); // Save state *after* phase is set
+        // Update display immediately before starting interval
+        // Manually trigger a tick calculation to show the correct time instantly
+        tick(); // Calculate remainingSeconds based on potentially adjusted serverEndTimeUTC
+        updateUIDisplays(); // Display the freshly calculated time
+        saveState(); // Save state *after* phase is set and time potentially adjusted
 
         intervalId = setInterval(tick, 1000);
         updateButtonStates(true); // Timer is running
         enableInputs(false); // Disable inputs
 
         elements.statusMessage.textContent = `${phase === 'work' ? 'Work' : 'Break'} session started/resumed.`;
-        console.log(`Countdown started for phase: ${phase}. Expected end: ${serverEndTimeUTC}`);
+        console.log(`Countdown started/resumed for phase: ${phase}. Expected end: ${serverEndTimeUTC}`);
     }
 
     function pauseCountdown() {
@@ -100,12 +118,13 @@ window.PomodoroLogic = (function() {
             stopCountdown(); // Helper to clear interval
             prePausePhase = phaseBeforePause;
             phase = 'paused';
-            // Keep serverEndTimeUTC
-            updateUIDisplays();
-            saveState();
+            pauseStartTime = Date.now(); // <<<<<< Record pause start time
+            // Keep serverEndTimeUTC - it will be adjusted on resume
+            updateUIDisplays(); // Show paused state
+            saveState(); // Save paused state including pauseStartTime
             updateButtonStates(false); // Timer is paused
             elements.statusMessage.textContent = `Timer paused.`;
-            console.log(`Countdown paused. Phase was: ${prePausePhase}`);
+            console.log(`Countdown paused. Phase was: ${prePausePhase}. Pause started at: ${pauseStartTime}`);
         }
     }
 
@@ -124,15 +143,25 @@ window.PomodoroLogic = (function() {
         prePausePhase = null;
         remainingSeconds = 0;
         serverEndTimeUTC = null;
+        pauseStartTime = null; // <<<<<< Clear pause start time on reset
         localStorage.removeItem(LS_KEY);
 
-        // Reset to defaults or initial config data
-        // Use initial config data for points/multiplier if available on first load reset
-        // Otherwise, keep current points/multiplier if reset happens mid-session
+        // Reset durations
         workDurationMinutes = parseInt(elements.workInput?.value) || initialConfigData?.workMins || 25;
         breakDurationMinutes = parseInt(elements.breakInput?.value) || initialConfigData?.breakMins || 5;
-        currentMultiplier = initialConfigData?.activeMultiplier || window.PomodoroLogic.currentMultiplier || 1.0; // Keep current mult if exists
-        totalPoints = initialConfigData?.totalPoints || window.PomodoroLogic.totalPoints || 0; // Keep current points if exists
+
+        // Reset points/multiplier only if initialConfigData is provided (i.e., page load)
+        // Otherwise, keep the current values accumulated so far if reset is manual
+        if (initialConfigData && Object.keys(initialConfigData).length > 0) {
+             window.PomodoroLogic.currentMultiplier = initialConfigData.activeMultiplier ?? 1.0;
+             window.PomodoroLogic.totalPoints = initialConfigData.totalPoints ?? 0;
+        } else {
+            // Manual reset keeps current points/multiplier but resets timer phase/time
+            // Multiplier might reset visually to 'Next Session' context
+        }
+        currentMultiplier = window.PomodoroLogic.currentMultiplier;
+        totalPoints = window.PomodoroLogic.totalPoints;
+
 
         // Update UI
         if(elements.workInput) elements.workInput.value = workDurationMinutes;
@@ -148,6 +177,7 @@ window.PomodoroLogic = (function() {
         const completedPhase = phase;
         stopCountdown();
         playAlarm();
+        pauseStartTime = null; // <<<<<< Clear pause start time on completion too
         if (elements.statusMessage) {
             elements.statusMessage.textContent = `Completing ${completedPhase} phase...`;
         }
@@ -240,14 +270,15 @@ window.PomodoroLogic = (function() {
             return;
         }
         const state = {
-            remainingSeconds: remainingSeconds,
+            remainingSeconds: remainingSeconds, // Save calculated remaining seconds
             phase: phase,
             prePausePhase: prePausePhase,
             workDurationMinutes: workDurationMinutes,
             breakDurationMinutes: breakDurationMinutes,
             currentMultiplier: currentMultiplier,
             totalPoints: totalPoints,
-            serverEndTimeUTC: serverEndTimeUTC
+            serverEndTimeUTC: serverEndTimeUTC, // Save the potentially adjusted end time
+            pauseStartTime: pauseStartTime // <<<<<< Save pause start time if paused
         };
         try {
             localStorage.setItem(LS_KEY, JSON.stringify(state));
@@ -273,23 +304,24 @@ window.PomodoroLogic = (function() {
 
         // 2. Compare with initial server data
         const serverState = initialConfigData?.activeState;
-        if (stateToLoad && serverState) {
-            console.log("Comparing local state with server state:", serverState);
-            if (serverState.phase !== stateToLoad.phase && stateToLoad.phase !== 'paused') {
-                console.warn(`State mismatch. Syncing from server.`);
-                stateToLoad = null; source = 'server_sync';
-            } else if (serverState.phase === stateToLoad.phase && stateToLoad.phase !== 'paused' || stateToLoad.phase === 'paused') {
-                stateToLoad.serverEndTimeUTC = serverState.endTime;
-                console.log("Local state kept/paused, updated server end time.");
-                source = stateToLoad.phase === 'paused' ? 'local_paused_synced' : 'local_synced';
-            }
-        } else if (!stateToLoad && serverState) {
+        if (stateToLoad && serverState) { // Both local and server state exist
+             console.log("Comparing local state with server state:", serverState);
+             // Sync based on server if phases mismatch AND local isn't paused
+             if (serverState.phase !== stateToLoad.phase && stateToLoad.phase !== 'paused') {
+                 console.warn(`State mismatch. Syncing from server.`);
+                 stateToLoad = null; source = 'server_sync';
+             }
+             // If phases match or local is paused, update end time from server
+             else if (stateToLoad.phase === 'paused' || serverState.phase === stateToLoad.phase) {
+                  stateToLoad.serverEndTimeUTC = serverState.endTime; // Update end time
+                  console.log("Local state kept/paused, updated server end time.");
+                  source = stateToLoad.phase === 'paused' ? 'local_paused_synced' : 'local_synced';
+             }
+        } else if (!stateToLoad && serverState) { // No local state, but server has active state
             console.log("No local state, using active state from server."); source = 'server_initial';
-        } else if (stateToLoad && !serverState) {
+        } else if (stateToLoad && !serverState) { // Local state exists, but server says inactive
             console.warn("Local state found, but server inactive. Resetting local state.");
-            // Pass the original initial config data to reset properly
-            resetTimer(window.pomodoroConfig?.initialData || {});
-            return;
+            resetTimer(window.pomodoroConfig?.initialData || {}); return;
         }
 
         // 3. Apply the chosen state
@@ -301,37 +333,61 @@ window.PomodoroLogic = (function() {
              currentMultiplier = stateToLoad.currentMultiplier || 1.0;
              totalPoints = stateToLoad.totalPoints || initialConfigData?.totalPoints || 0;
              serverEndTimeUTC = stateToLoad.serverEndTimeUTC || null;
+             pauseStartTime = stateToLoad.pauseStartTime || null; // <<<<<< Load pause start time
 
-             if (serverEndTimeUTC) {
-                 const now = new Date();
-                 remainingSeconds = Math.max(0, Math.floor((new Date(serverEndTimeUTC) - now) / 1000));
-             } else { remainingSeconds = stateToLoad.remainingSeconds; }
+             // Calculate remaining seconds based on server time if available and *not paused*
+             // If paused, keep the saved remainingSeconds as the source of truth until resume
+             if (serverEndTimeUTC && phase !== 'paused') {
+                 const now = Date.now();
+                 const endTimeMs = new Date(serverEndTimeUTC).getTime();
+                 remainingSeconds = Math.max(0, Math.floor((endTimeMs - now) / 1000));
+                 console.log(`Calculated remaining seconds from serverEndTimeUTC: ${remainingSeconds}`);
+             } else if (phase === 'paused') {
+                  remainingSeconds = stateToLoad.remainingSeconds; // Use saved seconds if paused
+                  console.log(`Using remaining seconds from paused local state: ${remainingSeconds}`);
+             } else {
+                  remainingSeconds = stateToLoad.remainingSeconds; // Fallback
+                  console.log(`Using remaining seconds from non-paused local state: ${remainingSeconds}`);
+             }
 
-              if (phase === 'work' || phase === 'break') { // Force pause on load if running
+              // Force pause on load if state was running (just to be safe, user needs to resume)
+              if (phase === 'work' || phase === 'break') {
                  console.warn(`Loaded running state (${phase}) from ${source}. Forcing pause.`);
                  prePausePhase = phase; phase = 'paused';
+                 if (!pauseStartTime) { // If loaded state didn't have pause time, set it now
+                    pauseStartTime = Date.now();
+                 }
               }
         } else if (serverState) { // From initial server data
             phase = serverState.phase; prePausePhase = null;
             workDurationMinutes = serverState.workMins; breakDurationMinutes = serverState.breakMins;
             currentMultiplier = serverState.multiplier; totalPoints = initialConfigData.totalPoints;
             serverEndTimeUTC = serverState.endTime;
+            pauseStartTime = null; // No pause state from server
 
-            const now = new Date();
-            remainingSeconds = Math.max(0, Math.floor((new Date(serverEndTimeUTC) - now) / 1000));
+            const now = Date.now();
+            const endTimeMs = new Date(serverEndTimeUTC).getTime();
+            remainingSeconds = Math.max(0, Math.floor((endTimeMs - now) / 1000));
             console.log(`Loaded state from server. Phase: ${phase}, Remaining: ${remainingSeconds}s`);
 
-            prePausePhase = phase; phase = 'paused'; // Force pause
+            // Force pause on initial load from server active state
+            prePausePhase = phase; phase = 'paused';
+            pauseStartTime = Date.now(); // Set pause time since we forced pause
             console.log("Forcing pause state after loading from server.");
+
         } else { // No state -> Start fresh/idle
             console.log("No active state found. Initializing idle.");
             resetTimer(window.pomodoroConfig?.initialData || {}); return;
         }
 
+        // Update exposed state properties after loading
+        window.PomodoroLogic.currentMultiplier = currentMultiplier;
+        window.PomodoroLogic.totalPoints = totalPoints;
+
         // 4. Update UI based on loaded state
         if(elements.workInput) elements.workInput.value = workDurationMinutes;
         if(elements.breakInput) elements.breakInput.value = breakDurationMinutes;
-        updateUIDisplays();
+        updateUIDisplays(); // Display the calculated/loaded time
 
         if (phase === 'paused') {
             updateButtonStates(false); // Show Resume
@@ -341,6 +397,7 @@ window.PomodoroLogic = (function() {
              updateButtonStates(false); enableInputs(true);
              elements.statusMessage.textContent = 'Set durations and click Start.';
         } else {
+            // Should not happen if forced pause logic works
             console.warn("State loaded into unexpected running phase:", phase);
             resetTimer(window.pomodoroConfig?.initialData || {});
         }
