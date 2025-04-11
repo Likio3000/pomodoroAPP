@@ -127,16 +127,18 @@ window.PomodoroLogic = (function() {
         localStorage.removeItem(LS_KEY);
 
         // Reset to defaults or initial config data
-        workDurationMinutes = parseInt(elements.workInput.value) || initialConfigData.workMins || 25;
-        breakDurationMinutes = parseInt(elements.breakInput.value) || initialConfigData.breakMins || 5;
-        currentMultiplier = initialConfigData.activeMultiplier || 1.0;
-        totalPoints = initialConfigData.totalPoints || 0; // Reset points based on initial load? Or keep? Let's keep for now. Use API response to update points.
+        // Use initial config data for points/multiplier if available on first load reset
+        // Otherwise, keep current points/multiplier if reset happens mid-session
+        workDurationMinutes = parseInt(elements.workInput?.value) || initialConfigData?.workMins || 25;
+        breakDurationMinutes = parseInt(elements.breakInput?.value) || initialConfigData?.breakMins || 5;
+        currentMultiplier = initialConfigData?.activeMultiplier || window.PomodoroLogic.currentMultiplier || 1.0; // Keep current mult if exists
+        totalPoints = initialConfigData?.totalPoints || window.PomodoroLogic.totalPoints || 0; // Keep current points if exists
 
         // Update UI
-        elements.workInput.value = workDurationMinutes;
-        elements.breakInput.value = breakDurationMinutes;
-        updateUIDisplays(); // Display 00:00, Idle state, initial multiplier/points
-        updateButtonStates(false); // Show start, hide others
+        if(elements.workInput) elements.workInput.value = workDurationMinutes;
+        if(elements.breakInput) elements.breakInput.value = breakDurationMinutes;
+        updateUIDisplays(); // Display 00:00, Idle state, potential multiplier/points
+        updateButtonStates(false); // Show start, hide pause
         enableInputs(true);
         elements.statusMessage.textContent = 'Timer reset. Set durations and click Start.';
         document.title = "Pomodoro Timer";
@@ -150,8 +152,7 @@ window.PomodoroLogic = (function() {
             elements.statusMessage.textContent = `Completing ${completedPhase} phase...`;
         }
 
-        // Call the API function (which is in a different 'module'/file)
-        // Assumes PomodoroAPI is available globally
+        // Call the API function
         if (window.PomodoroAPI && typeof window.PomodoroAPI.sendCompleteSignal === 'function') {
              window.PomodoroAPI.sendCompleteSignal(completedPhase);
         } else {
@@ -209,7 +210,7 @@ window.PomodoroLogic = (function() {
         if (isRunning) {
             elements.startBtn.style.display = 'none';
             elements.pauseBtn.style.display = 'inline-block';
-            elements.resetBtn.style.display = 'inline-block';
+            elements.resetBtn.style.display = 'inline-block'; // Keep reset visible
             elements.pauseBtn.textContent = 'Pause';
             elements.pauseBtn.disabled = false;
         } else { // Paused or Idle
@@ -217,10 +218,12 @@ window.PomodoroLogic = (function() {
             elements.startBtn.textContent = (phase === 'paused') ? 'Resume' : 'Start';
             elements.pauseBtn.style.display = 'none';
             elements.pauseBtn.disabled = true;
-            elements.resetBtn.style.display = (phase === 'paused') ? 'inline-block' : 'none';
+            elements.resetBtn.style.display = 'inline-block'; // Keep reset visible
         }
          // Ensure Start/Resume button is enabled when visible
          elements.startBtn.disabled = false;
+         // Ensure Reset button is also enabled when visible (API module handles disabling during calls)
+         elements.resetBtn.disabled = false;
     }
 
     function enableInputs(enabled) {
@@ -284,7 +287,8 @@ window.PomodoroLogic = (function() {
             console.log("No local state, using active state from server."); source = 'server_initial';
         } else if (stateToLoad && !serverState) {
             console.warn("Local state found, but server inactive. Resetting local state.");
-            resetTimer(initialConfigData); // Reset client
+            // Pass the original initial config data to reset properly
+            resetTimer(window.pomodoroConfig?.initialData || {});
             return;
         }
 
@@ -321,7 +325,7 @@ window.PomodoroLogic = (function() {
             console.log("Forcing pause state after loading from server.");
         } else { // No state -> Start fresh/idle
             console.log("No active state found. Initializing idle.");
-            resetTimer(initialConfigData); return;
+            resetTimer(window.pomodoroConfig?.initialData || {}); return;
         }
 
         // 4. Update UI based on loaded state
@@ -337,23 +341,33 @@ window.PomodoroLogic = (function() {
              updateButtonStates(false); enableInputs(true);
              elements.statusMessage.textContent = 'Set durations and click Start.';
         } else {
-            console.warn("State loaded into unexpected running phase:", phase); resetTimer(initialConfigData);
+            console.warn("State loaded into unexpected running phase:", phase);
+            resetTimer(window.pomodoroConfig?.initialData || {});
         }
     }
 
     // --- Public Methods & Properties ---
     // Expose methods needed by other modules/init script
+    // Also expose state variables needed by resetTimer
     return {
+        // State (accessible for reset logic)
+        currentMultiplier: currentMultiplier,
+        totalPoints: totalPoints,
+
         // Methods
         init: function(domElements, initialConfig) {
              console.log("Initializing Pomodoro Logic...");
              elements = domElements; // Store passed DOM elements
-             // Initialize state variables from config
-             workDurationMinutes = initialConfig?.initialData?.activeState?.workMins || parseInt(elements.workInput?.value) || 25;
-             breakDurationMinutes = initialConfig?.initialData?.activeState?.breakMins || parseInt(elements.breakInput?.value) || 5;
-             currentMultiplier = initialConfig?.initialData?.activeMultiplier || 1.0;
-             totalPoints = initialConfig?.initialData?.totalPoints || 0;
-             loadState(initialConfig.initialData); // Load persistent/server state
+
+             // Initialize state variables from config BEFORE loadState
+             const initialData = initialConfig?.initialData || {};
+             workDurationMinutes = initialData?.activeState?.workMins || parseInt(elements.workInput?.value) || 25;
+             breakDurationMinutes = initialData?.activeState?.breakMins || parseInt(elements.breakInput?.value) || 5;
+             // Assign to the module's state directly
+             window.PomodoroLogic.currentMultiplier = initialData?.activeMultiplier || 1.0;
+             window.PomodoroLogic.totalPoints = initialData?.totalPoints || 0;
+
+             loadState(initialData); // Load persistent/server state
              console.log("Pomodoro Logic Initialized.");
         },
         startCountdown: startCountdown,
@@ -368,8 +382,8 @@ window.PomodoroLogic = (function() {
         setPrePausePhase: function(newPrePause) { prePausePhase = newPrePause; },
         setServerEndTimeUTC: function(newTime) { serverEndTimeUTC = newTime; },
         setRemainingSeconds: function(seconds) { remainingSeconds = seconds; },
-        setTotalPoints: function(points) { totalPoints = points; },
-        setCurrentMultiplier: function(multiplier) { currentMultiplier = multiplier; },
+        setTotalPoints: function(points) { totalPoints = points; window.PomodoroLogic.totalPoints = points; }, // Update exposed property too
+        setCurrentMultiplier: function(multiplier) { currentMultiplier = multiplier; window.PomodoroLogic.currentMultiplier = multiplier; }, // Update exposed property too
         setWorkDuration: function(duration) { workDurationMinutes = duration; },
         setBreakDuration: function(duration) { breakDurationMinutes = duration; },
 

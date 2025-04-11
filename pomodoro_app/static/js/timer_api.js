@@ -16,14 +16,14 @@ window.PomodoroAPI = (function() {
         statusMessage: null,
         startBtn: null,
         pauseBtn: null,
-        resetBtn: null
+        resetBtn: null // Add resetBtn here
     };
 
     // --- Helper to disable/enable buttons during calls ---
     function setControlsDisabled(disabled) {
         if (elements.startBtn) elements.startBtn.disabled = disabled;
         if (elements.pauseBtn) elements.pauseBtn.disabled = disabled;
-        if (elements.resetBtn) elements.resetBtn.disabled = disabled;
+        if (elements.resetBtn) elements.resetBtn.disabled = disabled; // Include resetBtn
     }
 
     // --- API Communication ---
@@ -31,7 +31,7 @@ window.PomodoroAPI = (function() {
     async function sendStartSignal(workDuration, breakDuration) {
          console.log("Sending start signal to server...");
          if(elements.statusMessage) elements.statusMessage.textContent = 'Starting...';
-         setControlsDisabled(true);
+         setControlsDisabled(true); // Disable Start, Pause, Reset
 
          try {
             const response = await fetch(apiUrls.start, {
@@ -59,18 +59,19 @@ window.PomodoroAPI = (function() {
             // --- End state update ---
 
             window.PomodoroLogic.startCountdown(); // Start client timer via Logic module
+            // Buttons will be re-enabled correctly by updateButtonStates called via startCountdown
 
          } catch (error) {
              console.error("Error sending start signal:", error);
              if(elements.statusMessage) elements.statusMessage.textContent = `Error: ${error.message || 'Could not start timer.'}`;
              setControlsDisabled(false); // Re-enable controls on error
          }
-         // No finally block needed for disabling, startCountdown->updateButtonStates handles enabling on success
+         // No finally block needed for re-enabling on success path
     }
 
     async function sendCompleteSignal(completedPhase) {
          console.log(`Sending complete signal for phase: ${completedPhase}`);
-         setControlsDisabled(true); // Disable buttons during API call
+         setControlsDisabled(true); // Disable Start, Pause, Reset
 
          try {
              const response = await fetch(apiUrls.complete, {
@@ -106,21 +107,20 @@ window.PomodoroAPI = (function() {
 
                  if(elements.statusMessage) elements.statusMessage.textContent = "Work complete! Starting break.";
                  window.PomodoroLogic.updateUIDisplays();
-                 // Don't call saveState here, tick() will handle it
                  setTimeout(window.PomodoroLogic.startCountdown, 500); // Start break via Logic
+                 // Buttons re-enabled by updateButtonStates in startCountdown
 
-             } else if (data.status === 'session_complete') {
-                 if(elements.statusMessage) elements.statusMessage.textContent = "Break complete! Session finished.";
-                 // Need initial config data to reset properly
-                 // Let timer.js provide it via a callback or direct access
+             } else if (data.status === 'session_complete' || data.status === 'acknowledged_no_state') {
+                 // Resetting the timer will handle button states
+                 if (data.status === 'acknowledged_no_state') {
+                    console.warn("Server had no state for completion signal. Resetting client.");
+                    if(elements.statusMessage) elements.statusMessage.textContent = "Session desync? Resetting timer.";
+                 } else {
+                    if(elements.statusMessage) elements.statusMessage.textContent = "Break complete! Session finished.";
+                 }
                  const initialConfig = window.pomodoroConfig || { initialData: {} }; // Get from global
                  setTimeout(() => window.PomodoroLogic.resetTimer(initialConfig.initialData), 500); // Reset via Logic
 
-             } else if (data.status === 'acknowledged_no_state'){
-                 console.warn("Server had no state for completion signal. Resetting client.");
-                 if(elements.statusMessage) elements.statusMessage.textContent = "Session desync? Resetting timer.";
-                 const initialConfig = window.pomodoroConfig || { initialData: {} };
-                 setTimeout(() => window.PomodoroLogic.resetTimer(initialConfig.initialData), 500);
              } else {
                  throw new Error(`Unexpected status from complete API: ${data.status}`);
              }
@@ -130,9 +130,10 @@ window.PomodoroAPI = (function() {
               if(elements.statusMessage) elements.statusMessage.textContent = `Error: ${error.message || 'Could not complete phase.'}`;
               // Attempt to pause locally on error
               window.PomodoroLogic.pauseCountdown(); // Pause via Logic
-              setControlsDisabled(false); // Re-enable controls after handling pause
+              // Buttons re-enabled by updateButtonStates in pauseCountdown
+              // setControlsDisabled(false); // No longer needed here
          }
-        // No finally block needed, button states handled by logic flow above
+        // No finally block needed for re-enabling
     }
 
 

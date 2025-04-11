@@ -55,7 +55,7 @@
              statusMessage: elements.statusMessage,
              startBtn: elements.startBtn,
              pauseBtn: elements.pauseBtn,
-             resetBtn: elements.resetBtn
+             resetBtn: elements.resetBtn // Pass resetBtn to API module
         };
         window.PomodoroAPI.init(apiElements, config.apiUrls);
 
@@ -83,15 +83,16 @@
 
         elements.pauseBtn.addEventListener('click', window.PomodoroLogic.pauseCountdown); // Call Logic module
 
+        // Updated Reset Button Listener
         elements.resetBtn.addEventListener('click', () => {
-             const currentPhase = window.PomodoroLogic.getPhase();
-             if (currentPhase === 'paused') { // Only allow reset when paused
-                 if (confirm("Are you sure you want to reset the timer? This will end the current session.")) {
-                     // Reset via Logic module, passing initial config data for default values
-                     window.PomodoroLogic.resetTimer(config.initialData);
-                     // Optional: Send reset signal to server API if needed
-                 }
-             } else { console.log("Reset ignored (not paused)."); }
+             // No phase check needed here anymore
+             if (confirm("Are you sure you want to reset the timer? This will end the current session and discard progress.")) {
+                 // Reset via Logic module, passing initial config data for default values if needed
+                 // Use the globally available config
+                 window.PomodoroLogic.resetTimer(config.initialData);
+                 // Optional: Send reset signal to server API to clear ActiveTimerState if desired
+                 // fetch('/api/timer/reset', { method: 'POST' }); // Example: Requires backend endpoint
+             }
         });
 
         // Input listeners to update *potential* durations in Logic module *only if idle*
