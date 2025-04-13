@@ -11,13 +11,13 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
           // Parse the ISO 8601 timestamp
           const date = new Date(isoTimestamp);
-  
+
           // Check if the date is valid after parsing
           if (isNaN(date.getTime())) {
                console.error("Invalid Date parsed from timestamp:", isoTimestamp);
                throw new Error("Invalid Date parsed");
           }
-  
+
           // Format the date using the user's locale settings
           const options = {
             year: 'numeric', month: 'short', day: 'numeric',
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
           };
           // 'undefined' uses the browser's default locale and timezone
           cell.textContent = date.toLocaleString(undefined, options);
-  
+
         } catch (e) {
           console.error("Error formatting date:", isoTimestamp, e);
           // Keep the original ISO timestamp or show an error message
@@ -37,20 +37,20 @@ document.addEventListener('DOMContentLoaded', function() {
            cell.textContent = "N/A";
       }
     });
-  
+
     // --- Chat Agent JavaScript ---
     // Access configuration passed from the template via the global window object
     const chatConfig = window.dashboardConfig || {}; // Use empty object as fallback
     const chatEnabled = chatConfig.chatEnabled;
     const apiChatUrl = chatConfig.apiChatUrl;
-  
+
     if (chatEnabled && apiChatUrl) { // Only proceed if chat is enabled AND URL is provided
         const chatLog = document.getElementById('chat-log');
         const chatInput = document.getElementById('chat-input');
         const chatSendBtn = document.getElementById('chat-send-btn');
         const chatStatus = document.getElementById('chat-status');
         const dashboardDataDiv = document.getElementById('dashboard-data'); // Get the div holding all data attributes
-  
+
         // Check if essential elements exist
         if (!chatLog || !chatInput || !chatSendBtn || !chatStatus || !dashboardDataDiv) {
             console.error("Chat UI elements not found. Chat functionality may be broken.");
@@ -60,29 +60,57 @@ document.addEventListener('DOMContentLoaded', function() {
             if(chatStatus) chatStatus.textContent = "Chat UI Error.";
             return; // Stop chat script execution
         }
-  
+
+        // --- *** MODIFIED addChatMessage function *** ---
         function addChatMessage(sender, message) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', sender); // 'user' or 'ai'
-            // Basic sanitization: Use textContent to prevent HTML injection
-            messageDiv.textContent = message; // Safely sets text content
-  
+
+            if (sender === 'ai') {
+                // AI message: Parse Markdown, sanitize, and set innerHTML
+                if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+                    try {
+                        // 1. Parse the Markdown text received from the API into HTML
+                        // Make sure marked is configured to handle things like line breaks correctly
+                        const rawHtml = marked.parse(message, { breaks: true }); // Enable breaks for newlines
+                        // 2. Sanitize the generated HTML to prevent XSS
+                        const cleanHtml = DOMPurify.sanitize(rawHtml);
+                        // 3. Set the innerHTML of the div
+                        messageDiv.innerHTML = cleanHtml;
+                    } catch (e) {
+                        console.error("Error parsing or sanitizing Markdown:", e);
+                        // Fallback to textContent if parsing/sanitizing fails
+                        messageDiv.textContent = message;
+                    }
+                } else {
+                    console.warn("Marked.js or DOMPurify not loaded. Rendering AI message as plain text.");
+                    // Fallback to textContent if libraries aren't loaded
+                    messageDiv.textContent = message;
+                }
+            } else {
+                // User message: Use textContent directly for security
+                messageDiv.textContent = message;
+            }
+
             chatLog.appendChild(messageDiv);
             // Scroll to the bottom smoothly
             chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: 'smooth' });
         }
-  
+        // --- *** END MODIFIED addChatMessage function *** ---
+
+
         async function sendChatMessage() {
             const userPrompt = chatInput.value.trim();
             if (!userPrompt) return; // Do nothing if input is empty
-  
+
             // Disable input while processing
             chatInput.disabled = true;
             chatSendBtn.disabled = true;
             chatStatus.textContent = 'Thinking...';
-            addChatMessage('user', userPrompt);
+            // Use the MODIFIED addChatMessage for the user's own message
+            addChatMessage('user', userPrompt); // User message still added safely as text
             chatInput.value = ''; // Clear input field immediately
-  
+
             // --- *** Get ALL Dashboard Data from data attributes *** ---
             // Read all relevant data attributes from the dashboardDataDiv
             const dashboardData = {
@@ -95,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 week_sessions: dashboardDataDiv.dataset.weekSessions || '0'    // Added
             };
             // --------------------------------------------------------------
-  
+
             try {
                 // Use the URL passed from the template
                 const response = await fetch(apiChatUrl, {
@@ -109,12 +137,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         dashboard_data: dashboardData // Send the enhanced data object
                     })
                 });
-  
+
                 // Re-enable inputs once response processing starts
                 chatInput.disabled = false;
                 chatSendBtn.disabled = false;
                 chatStatus.textContent = ''; // Clear status
-  
+
                 if (!response.ok) {
                     let errorMsg = `HTTP error! Status: ${response.status}`;
                     try {
@@ -125,10 +153,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     throw new Error(errorMsg); // Propagate error to be caught below
                 }
-  
+
                 const data = await response.json();
                 if (data.response) {
-                    addChatMessage('ai', data.response);
+                    // Use the MODIFIED addChatMessage for the AI response
+                    addChatMessage('ai', data.response); // AI response will now be rendered as Markdown
                 } else if (data.error) {
                      // Handle errors explicitly sent in JSON structure
                      console.error("API returned error in JSON:", data.error);
@@ -140,9 +169,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     addChatMessage('ai', `Sorry, I received an unexpected response from the server.`);
                     chatStatus.textContent = 'Error occurred.';
                 }
-  
+
             } catch (error) {
                 console.error("Chat API call failed:", error);
+                // Use the MODIFIED addChatMessage for the error message
                 addChatMessage('ai', `Sorry, I couldn't connect or process your request: ${error.message}`);
                 // Ensure inputs are re-enabled in case of fetch/network error
                 chatInput.disabled = false;
@@ -152,10 +182,10 @@ document.addEventListener('DOMContentLoaded', function() {
                  chatInput.focus(); // Put focus back to input field for convenience
             }
         }
-  
+
         // Event Listeners for Chat
         chatSendBtn.addEventListener('click', sendChatMessage);
-  
+
         chatInput.addEventListener('keypress', function(event) {
             // Send message on Enter key press, unless Shift+Enter is used
             if (event.key === 'Enter' && !event.shiftKey) {
@@ -163,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 sendChatMessage();
             }
         });
-  
+
     } else {
         // Optional: Log if chat is disabled or URL is missing
         if (!chatEnabled) console.log("Chat feature is disabled via config.");
@@ -178,5 +208,5 @@ document.addEventListener('DOMContentLoaded', function() {
             if(chatStatus) chatStatus.textContent = "Chat config error.";
         }
     }
-  
+
   }); // end DOMContentLoaded

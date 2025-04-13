@@ -102,6 +102,11 @@
   {# +++ End Chat Agent Section +++ #}
 
 
+  {# +++ NEW: Add CDN links for Marked.js and DOMPurify +++ #}
+  {# Place these BEFORE your dashboard.js script #}
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script> {# Add DOMPurify #}
+
   {# +++ Inline Script to Pass Config Data to dashboard.js (Remains the same) +++ #}
   {# This block defines data needed by the external JS file #}
   <script>
