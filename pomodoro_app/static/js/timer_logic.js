@@ -180,6 +180,13 @@ window.PomodoroLogic = (function() {
         pauseStartTime = null; // <<<<<< Clear pause start time on completion too
         if (elements.statusMessage) {
             elements.statusMessage.textContent = `Completing ${completedPhase} phase...`;
+            elements.statusMessage.classList.remove('status-alert', 'status-success');
+        }
+
+        // Animate break phase
+        if (completedPhase === 'work' && elements.timerDisplay) {
+            elements.timerDisplay.classList.add('break-animate');
+            setTimeout(() => elements.timerDisplay.classList.remove('break-animate'), 1200);
         }
 
         // Call the API function
@@ -188,6 +195,7 @@ window.PomodoroLogic = (function() {
         } else {
              console.error("PomodoroAPI.sendCompleteSignal not found!");
              elements.statusMessage.textContent = "Error: Cannot contact server.";
+             elements.statusMessage.classList.add('status-alert');
         }
     }
 

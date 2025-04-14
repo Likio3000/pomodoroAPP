@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>Dashboard</h2>
+  <h2 class="dashboard-main-title">Dashboard</h2>
   <p>Welcome, {{ current_user.name }}! Here are your productivity stats:</p>
 
   {# Container to hold data attributes for JS (remains the same) #}
@@ -22,7 +22,7 @@
 
     {# Column 1: Overall Stats #}
     <div class="stats-column">
-      <h3>Overall Stats</h3>
+      <h3 class="dashboard-section-title">Overall Stats</h3>
       <ul class="stats">
         <li><strong>Total Focused Time:</strong> {{ total_focus }} minutes</li>
         <li><strong>Total Break Time:</strong> {{ total_break }} minutes</li>
@@ -32,7 +32,7 @@
 
     {# Column 2: Today's Stats #}
     <div class="stats-column">
-      <h3>Today's Stats (UTC)</h3>
+      <h3 class="dashboard-section-title">Today's Stats (UTC)</h3>
       <ul class="stats">
         <li><strong>Focused Time Today:</strong> {{ today_focus }} minutes</li>
         <li><strong>Sessions Today:</strong> {{ today_sessions }}</li>
@@ -41,7 +41,7 @@
 
     {# Column 3: Week's Stats #}
     <div class="stats-column">
-      <h3>This Week's Stats (UTC, Mon)</h3> {# Shortened title slightly #}
+      <h3 class="dashboard-section-title">This Week's Stats (UTC)</h3>
        <ul class="stats">
         <li><strong>Focused Time This Week:</strong> {{ week_focus }} minutes</li>
         <li><strong>Sessions This Week:</strong> {{ week_sessions }}</li>

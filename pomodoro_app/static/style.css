@@ -1,19 +1,143 @@
-/* pomodoro_app/static/style.css */
-
-/* Basic resets and typography */
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  background: #f9f9f9;
-  color: #333;
-  line-height: 1.6; /* Improve default line spacing */
-}
 h1, h2, h3 {
   color: #444;
   line-height: 1.3;
 }
-a { color: #007BFF; text-decoration: none; }
-a:hover { text-decoration: underline; }
+
+/* --- Dashboard Section Titles (secondary, not main) --- */
+.dashboard-section-title {
+  color: #23272f;
+  background: #e9ecef;
+  padding: 0.3em 1em;
+  border-radius: 0.5em;
+  font-weight: 600;
+  font-size: 1.13em;
+  margin-bottom: 0.5em;
+  margin-top: 1em;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  display: inline-block;
+}
+
+/* --- Timer Page Main Title --- */
+.timer-main-title {
+  display: block;
+  text-align: center;
+  font-size: 2.2em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0.4em auto 0.8em auto;
+  padding: 0.5em 1.5em;
+  background: linear-gradient(90deg, #f8fafc 60%, #e3e8ef 100%);
+  border-radius: 1.2em;
+  box-shadow: 0 2px 12px rgba(52,58,64,0.07);
+  animation: fadeInScale 0.7s cubic-bezier(.23,1.02,.34,1) 1;
+}
+
+@keyframes fadeInScale {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* --- Status Message Colors --- */
+.status-message {
+  color: #555;
+  background: #f6f8fa;
+  padding: 0.7em 1.2em;
+  border-radius: 0.6em;
+  font-size: 1.07em;
+  margin: 1em auto 0.5em auto;
+  max-width: 600px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+  transition: color 0.3s, background 0.3s;
+  text-align: center;
+  display: block;
+}
+
+/* --- Dashboard Main Title --- */
+.dashboard-main-title {
+  display: block;
+  text-align: center;
+  font-size: 2.5em;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  margin: 0.5em auto 1.2em auto;
+  padding: 0.3em 1em;
+  background: linear-gradient(90deg, #f8fafc 60%, #e3e8ef 100%);
+  border-radius: 1.2em;
+  box-shadow: 0 2px 12px rgba(52,58,64,0.07);
+  animation: fadeInScale 0.7s cubic-bezier(.23,1.02,.34,1) 1;
+}
+.status-message.status-success {
+  color: #155724;
+  background: #e6f4ea;
+}
+.status-message.status-alert {
+  color: #a94442;
+  background: #fbeaea;
+}
+
+/* --- Points Animation --- */
+@keyframes pointsPop {
+  0% { transform: scale(1); }
+  20% { transform: scale(1.25); color: #1d72b8; }
+  40% { transform: scale(0.98); }
+  100% { transform: scale(1); color: inherit; }
+}
+.total-points.points-animate {
+  animation: pointsPop 0.6s cubic-bezier(.23,1.02,.34,1) 1;
+}
+
+/* --- Start Button Animation --- */
+@keyframes btnPulse {
+  0% { box-shadow: 0 0 0 0 rgba(29,114,184,0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(29,114,184,0); }
+  100% { box-shadow: 0 0 0 0 rgba(29,114,184,0); }
+}
+#start-btn:active {
+  animation: btnPulse 0.4s;
+}
+
+/* --- Break Phase Animation --- */
+@keyframes breakGlow {
+  0% { background: #f6f8fa; box-shadow: 0 0 0 0 #b6e0fe; }
+  60% { background: #e3f7ff; box-shadow: 0 0 18px 6px #b6e0fe; }
+  100% { background: #f6f8fa; box-shadow: 0 0 0 0 #b6e0fe; }
+}
+.timer-display.break-animate {
+  animation: breakGlow 1.2s;
+}
+
+/* --- General Modern Touches --- */
+.stats-column {
+  background: #fcfcfd;
+  border-radius: 0.8em;
+  box-shadow: 0 1px 8px rgba(52,58,64,0.07);
+  padding: 1.1em 1.5em;
+  margin-bottom: 1.2em;
+}
+
+/* Slight hover effect for tables */
+.sessions-table tr:hover {
+  background: #f1f5fa;
+}
+
+/* Buttons: more modern look */
+.btn {
+  border-radius: 0.7em;
+  font-size: 1.08em;
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 4px rgba(52,58,64,0.06);
+}
+.btn:active {
+  background: #e3e8ef;
+  color: #1d72b8;
+}
+
+/* Centered and boxed main timer title */
+.timer-main-title {
+  margin-bottom: 1.2em;
+}
 
 /* Navigation bar */
 .navbar {
