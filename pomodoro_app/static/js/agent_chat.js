@@ -86,12 +86,19 @@ function setAgentStatus(status) {
 async function sendAgentMessage() {
     const input = document.getElementById('agent-chat-input');
     const agentTypeSelect = document.getElementById('agent-type-select');
-    if (!input || !agentTypeSelect) {
-        console.error("Chat input or agent select missing.");
+    // --- Get TTS toggle state ---
+    const ttsToggle = document.getElementById('tts-toggle');
+    // --- END ---
+
+    if (!input || !agentTypeSelect || !ttsToggle) { // Add check for ttsToggle
+        console.error("Chat input, agent select, or TTS toggle missing.");
         return;
     }
     const agentType = agentTypeSelect.value;
     const message = input.value.trim();
+    // --- Read toggle state ---
+    const isTtsEnabledByUser = ttsToggle.checked;
+    // --- END ---
 
     if (!message) return;
 
@@ -100,7 +107,10 @@ async function sendAgentMessage() {
     setAgentStatus('...');
 
     // Optionally, collect dashboard data from your app (dummy for now)
-    const dashboardData = window.getDashboardData ? window.getDashboardData() : {};
+    // Using window.getDashboardData is a placeholder; in this app, data is in window.dashboardConfig
+    // but for the chat API, the required data is already in the template, so we don't need
+    // to dynamically fetch it here unless it changes after page load.
+    const dashboardData = window.dashboardConfig ? window.dashboardConfig.initialData : {}; // Example if needed
 
     try {
         const response = await fetch('/api/chat', { // Ensure this URL is correct for your app context
@@ -108,13 +118,19 @@ async function sendAgentMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 prompt: message,
+                // Pass dashboard data directly if needed, or let backend access user session
                 dashboard_data: dashboardData,
-                agent_type: agentType
+                agent_type: agentType,
+                // --- Send user's TTS preference ---
+                tts_enabled: isTtsEnabledByUser
+                // --- END ---
             })
         });
         const data = await response.json();
         if (data.response) {
             appendAgentMessage(data.response, 'ai'); // Uses the updated function
+            // The playAgentAudio function already checks the toggle before playing,
+            // but now it will often receive null for audio_url if TTS was disabled
             if (data.audio_url) {
                 playAgentAudio(data.audio_url);
             }
@@ -147,15 +163,20 @@ function playAgentAudio(audioUrl) {
     audio.onplay = () => console.log('Agent audio playing:', audioUrl);
     audio.onerror = (e) => {
         console.error('Error playing agent audio:', e);
-        alert('Could not play agent audio. Check browser console for details.');
+        // Avoid alert in production, log instead or use subtle UI feedback
+        // alert('Could not play agent audio. Check browser console for details.');
     };
     audio.play().catch(err => {
         console.error('Audio play() failed:', err);
         // Provide more user-friendly feedback if possible
         if (err.name === 'NotAllowedError') {
-            alert('Audio playback failed. Browsers often require user interaction (like a click) before playing audio. Please click anywhere on the page and try sending the message again.');
+            // Avoid alert in production
+            console.warn('Audio playback failed. Browsers often require user interaction (like a click) before playing audio.');
+            // alert('Audio playback failed. Browsers often require user interaction (like a click) before playing audio. Please click anywhere on the page and try sending the message again.');
         } else {
-            alert('Audio playback failed. Check browser console for details.');
+            // Avoid alert in production
+            console.error('An unexpected error occurred during audio playback.');
+            // alert('Audio playback failed. Check browser console for details.');
         }
     });
 }
@@ -203,8 +224,11 @@ window.triggerAgentEvent = function(eventType) {
     else if (eventType === 'break_end') prompt = "Break's over. Any advice for getting back to work?";
 
     if (prompt) {
+        // Don't automatically send, just populate the input for the user to send if they want
         agentInput.value = prompt;
-        sendAgentMessage();
+        // Optionally focus the input
+        // agentInput.focus();
+        // Removed automatic sendAgentMessage() call here
     }
 };
 
