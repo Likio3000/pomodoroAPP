@@ -249,7 +249,6 @@ def api_complete_phase():
                 'total_points': user.total_points
             }), 400
 
-        # If there is a phase mismatch, log and continue with the DB phase.
         if server_state.phase != phase_completed:
             current_app.logger.warning(
                 f"API Complete: Phase mismatch for User {user_id} (client sent '{phase_completed}', DB is '{server_state.phase}')."
@@ -298,7 +297,6 @@ def api_complete_phase():
                     f"API Complete: Failed to log PomodoroSession for User {user_id}: {log_err}", exc_info=True
                 )
 
-            # Transition to break phase.
             break_minutes = server_state.break_duration_minutes
             break_end_time_utc = now_utc + timedelta(minutes=break_minutes)
             server_state.phase = 'break'
@@ -533,24 +531,28 @@ If the question is unrelated to productivity, politely decline.
         current_app.logger.info(f"API Chat: OpenAI response generated for User {current_user.id}.")
 
         audio_url = None
-        if ai_response:
-            try:
-                tts_response = openai_client.audio.speech.create(
-                    model="tts-1",
-                    voice=tts_voice,
-                    input=ai_response
-                )
-                audio_filename = f"agent_{uuid.uuid4().hex}.mp3"
-                audio_path = os.path.join(AUDIO_TEMP_DIR, audio_filename)
-                # Stream the audio content to file.
-                tts_response.stream_to_file(audio_path)
-                audio_url = url_for('main.serve_agent_audio', filename=audio_filename, _external=False)
-                current_app.logger.info(f"API Chat: TTS audio generated for User {current_user.id} at {audio_url}.")
-            except Exception as tts_e:
-                current_app.logger.error(f"API Chat: Error generating TTS audio: {tts_e}", exc_info=True)
-                audio_url = None
+        # --- NEW: Check if TTS is enabled via configuration ---
+        if current_app.config.get('TTS_ENABLED', True):
+            if ai_response:
+                try:
+                    tts_response = openai_client.audio.speech.create(
+                        model="tts-1",
+                        voice=tts_voice,
+                        input=ai_response
+                    )
+                    audio_filename = f"agent_{uuid.uuid4().hex}.mp3"
+                    audio_path = os.path.join(AUDIO_TEMP_DIR, audio_filename)
+                    # Stream the audio content to file.
+                    tts_response.stream_to_file(audio_path)
+                    audio_url = url_for('main.serve_agent_audio', filename=audio_filename, _external=False)
+                    current_app.logger.info(f"API Chat: TTS audio generated for User {current_user.id} at {audio_url}.")
+                except Exception as tts_e:
+                    current_app.logger.error(f"API Chat: Error generating TTS audio: {tts_e}", exc_info=True)
+                    audio_url = None
+            else:
+                current_app.logger.info(f"API Chat: Empty AI response for User {current_user.id}; skipping TTS generation.")
         else:
-            current_app.logger.info(f"API Chat: Empty AI response for User {current_user.id}; skipping TTS generation.")
+            current_app.logger.info(f"API Chat: TTS is disabled by configuration for User {current_user.id}. Skipping TTS generation.")
 
         return jsonify({'response': ai_response, 'audio_url': audio_url})
     except Exception as e:
@@ -563,7 +565,6 @@ If the question is unrelated to productivity, politely decline.
 @limiter.limit("30 per minute")
 def serve_agent_audio(filename):
     """Serves TTS audio files for agent chat, ensuring safe file access."""
-    # Prevent directory traversal.
     if '..' in filename or filename.startswith('/'):
         current_app.logger.warning(f"Audio access attempt blocked: {filename}")
         return abort(404)

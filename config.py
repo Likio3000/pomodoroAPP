@@ -14,21 +14,24 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Define database fallback for development if DATABASE_URL is not set
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'pomodoro_app', 'pomodoro-dev.db'))
-    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY') # Will be None if not set
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')  # Will be None if not set
 
     # Optional: Configure logging level
     LOGGING_LEVEL = os.environ.get('LOGGING_LEVEL', 'INFO').upper()
 
     # Rate Limiter default configuration (can be overridden)
     RATELIMIT_DEFAULT = "200 per day;50 per hour"
-    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://') # 'memory://' for single process, consider redis for multi-process
+    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')  # 'memory://' for single process, consider redis for multi-process
 
     # Default values for Pomodoro (can be used if needed)
     DEFAULT_WORK_MINUTES = 25
     DEFAULT_BREAK_MINUTES = 5
 
     # Control feature flags if needed
-    FEATURE_CHAT_ENABLED = bool(OPENAI_API_KEY) # Automatically enable chat if key exists
+    FEATURE_CHAT_ENABLED = bool(OPENAI_API_KEY)  # Automatically enable chat if key exists
+
+    # --- NEW: TTS Toggle Flag ---
+    TTS_ENABLED = os.environ.get('TTS_ENABLED', 'true').lower() == 'true'
 
 
 class DevelopmentConfig(Config):
@@ -39,9 +42,6 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'pomodoro_app', 'pomodoro-dev.db'))
     # Less strict rate limits for development/testing
     RATELIMIT_DEFAULT = "500 per day;100 per hour;20 per minute"
-    # For SQLite, use instance folder path if preferred
-    # SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-    #    'sqlite:///' + os.path.join(os.path.abspath(os.path.join(basedir, 'instance')), 'pomodoro-dev.db')
 
 
 class ProductionConfig(Config):
@@ -49,11 +49,6 @@ class ProductionConfig(Config):
     FLASK_ENV = 'production'
     DEBUG = False
     # Ensure DATABASE_URL is set in production environment
-    #SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    #if not SQLALCHEMY_DATABASE_URI:
-        #raise ValueError("No DATABASE_URL set for production environment")
-    # Consider using Redis for rate limiting storage in production if using multiple workers
-    # RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_REDIS_URL', 'memory://') # Example
 
 
 class TestingConfig(Config):
@@ -62,8 +57,7 @@ class TestingConfig(Config):
     DEBUG = True
     # Use in-memory SQLite database for tests or a dedicated test file
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
-    # SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'instance', 'test.db')
-    WTF_CSRF_ENABLED = False # Disable CSRF for testing forms
+    WTF_CSRF_ENABLED = False  # Disable CSRF for testing forms
     SECRET_KEY = 'test-secret-key'
     # Disable rate limiting for tests usually
     RATELIMIT_ENABLED = False
