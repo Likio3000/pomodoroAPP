@@ -20,12 +20,14 @@
       <div class="timer-buttons">
           <button id="start-btn" class="btn">Start</button>
           <button id="pause-btn" class="btn" style="display: none;">Pause</button>
+          <!-- Reset button structure remains, JS controls visibility -->
           <button id="reset-btn" class="btn" style="display: none;">Reset</button>
       </div>
     </div>
 
     <div id="timer-display" class="timer-display">00:00</div>
-    <div id="status-message" class="status-message" aria-live="polite">Set durations and click Start.</div>
+    <!-- Initial status message, JS will update -->
+    <div id="status-message" class="status-message" aria-live="polite">Checking server state...</div>
 
     <!-- Audio element for alarm -->
     <audio id="alarm-sound" src="{{ url_for('static', filename='alarm.mp3') }}" preload="auto"></audio>
@@ -35,11 +37,8 @@
         <span>Active Multiplier:</span>
         <span id="active-multiplier-display" class="active-multiplier">
             {{ active_multiplier | round(1) }}x
-            {% if active_state_info and active_state_info.phase == 'break' %}
-                <span class="multiplier-context">(Break Rate)</span>
-            {% elif not active_state_info %}
-                <span class="multiplier-context">(Next Session)</span>
-            {% endif %}
+            <!-- Default context, JS will update if timer is active -->
+            <span class="multiplier-context">(Next Session)</span>
         </span>
     </div>
 
@@ -71,14 +70,16 @@
     window.pomodoroConfig = {
       apiUrls: {
         start: "{{ url_for('main.api_start_timer') }}",
-        complete: "{{ url_for('main.api_complete_phase') }}"
+        complete: "{{ url_for('main.api_complete_phase') }}",
+        getState: "{{ url_for('main.api_get_timer_state') }}",
+        reset: "{{ url_for('main.api_reset_timer') }}",
+        resume: "{{ url_for('main.api_resume_timer') }}" // <-- Added resume URL
       },
       initialData: {
         totalPoints: {{ total_points | int }},
-        activeMultiplier: {{ active_multiplier | float }},
-        activeState: {{ active_state_info | tojson | safe if active_state_info else 'null' }}
+        activeMultiplier: {{ active_multiplier | float }}
+        // --- activeState removed ---
       }
-      // No need to pass POINTS_PER_MINUTE here unless timer JS needs it directly
     };
   </script>
 
