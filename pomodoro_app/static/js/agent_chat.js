@@ -1,188 +1,263 @@
 // agent_chat.js
-// Handles chat UI, agent selection, and audio playback for the Pomodoro AI assistant
+// Handles chat UI, agent selection, audio playback, and chat history persistence
+// for the Pomodoro AI assistant using sessionStorage.
 
 // --- AGENT DEFINITIONS ---
-// To add or edit agents, modify the AGENTS object below.
-// Each agent has a key, a display name, and a TTS voice.
 const AGENTS = {
     "default": { name: "Assistant", voice: "alloy" },
     "motivator": { name: "Motivator", voice: "nova" },
     "coach": { name: "Coach", voice: "shimmer" }
 };
 
+// --- Session Storage Key and In-Memory History ---
+const CHAT_HISTORY_KEY = 'pomodoroAgentChatHistory_v1'; // Added versioning
+let chatHistory = []; // In-memory representation of the history
+
+
 // --- UI Construction ---
 function createAgentChatBox() {
+    // Only create if it doesn't exist
+    if (document.getElementById('agent-chatbox')) return;
+
     const chatBox = document.createElement('div');
     chatBox.id = 'agent-chatbox';
+    // Added aria-live for accessibility on status
     chatBox.innerHTML = `
-        <div class="agent-chat-header">AI Assistant <span id="agent-status"></span></div>
-        <div id="agent-chat-log" class="agent-chat-log"></div>
+        <div class="agent-chat-header">AI Assistant <span id="agent-status" aria-live="polite"></span></div>
+        <div id="agent-chat-log" class="agent-chat-log" aria-live="polite" aria-atomic="false"></div>
         <div class="agent-chat-controls agent-chat-controls-col">
             <div class="agent-chat-row">
+                <label for="agent-type-select" class="visually-hidden">Select Agent Personality</label>
                 <select id="agent-type-select">
                     ${Object.entries(AGENTS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join('')}
                 </select>
             </div>
             <div class="agent-chat-row agent-chat-input-row">
+                <label for="agent-chat-input" class="visually-hidden">Chat Message Input</label>
                 <input id="agent-chat-input" type="text" placeholder="Type your message..." autocomplete="off" />
                 <button id="agent-chat-send">Send</button>
             </div>
         </div>
-        <div class="agent-chat-settings" style="padding: 8px; border-top: 1px solid #eee; text-align: right;">
-            <label><input type="checkbox" id="tts-toggle"> Enable TTS</label>
+        <div class="agent-chat-settings">
+            <label for="tts-toggle"><input type="checkbox" id="tts-toggle"> Enable TTS</label>
         </div>
         <audio id="agent-chat-audio" style="display:none;"></audio>
     `;
     document.body.appendChild(chatBox);
+    console.log("Agent chatbox created.");
 }
 
-// --- Chat Logic ---
-// *** MODIFIED function to parse Markdown and sanitize ***
-function appendAgentMessage(text, sender = 'ai') {
+// --- Chat Logic & History Management ---
+
+// Helper function to render message without modifying history array or saving
+function renderMessageWithoutSaving(text, sender = 'ai') {
     const log = document.getElementById('agent-chat-log');
+    if (!log) {
+        console.error("Chat log element not found in renderMessageWithoutSaving.");
+        return;
+    }
     const msg = document.createElement('div');
     msg.className = 'agent-message ' + sender;
 
+    // --- Use the same Markdown/Sanitization logic ---
+    const prefix = sender === 'ai' ? '<strong>AI:</strong> ' : '<strong>You:</strong> ';
+    msg.innerHTML = prefix; // Set prefix first
+
     if (sender === 'ai') {
-        // Render Markdown for AI responses, sanitize HTML
-        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') { // Check both libs
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
             try {
-                // Parse Markdown to HTML, enabling line breaks
                 const rawHtml = marked.parse(text, { breaks: true });
-                // Sanitize the generated HTML to prevent XSS
                 const cleanHtml = DOMPurify.sanitize(rawHtml);
-                // Set the innerHTML safely
-                msg.innerHTML = `<strong>AI:</strong> ` + cleanHtml;
+                // Append the sanitized HTML *after* the prefix
+                msg.innerHTML += cleanHtml;
             } catch (e) {
-                console.error("Error parsing/sanitizing Markdown in agent chat:", e);
-                // Fallback to textContent on error for security
-                msg.innerHTML = `<strong>AI:</strong> `; // Add prefix
-                msg.appendChild(document.createTextNode(text)); // Append text safely
+                console.error("Error parsing/sanitizing Markdown:", e);
+                msg.appendChild(document.createTextNode(text)); // Fallback
             }
         } else {
-            console.warn("Marked.js or DOMPurify not loaded for agent chat. Rendering AI message as plain text.");
-            // Fallback if libraries aren't loaded
-            msg.innerHTML = `<strong>AI:</strong> `; // Add prefix
-            msg.appendChild(document.createTextNode(text)); // Append text safely
+            console.warn("Marked.js or DOMPurify not loaded. Rendering AI message as plain text.");
+            msg.appendChild(document.createTextNode(text)); // Fallback
         }
-    } else {
-        // User message: ALWAYS use text node for security
-        msg.innerHTML = `<strong>You:</strong> `; // Add prefix
-        msg.appendChild(document.createTextNode(text));
+    } else { // User message
+        msg.appendChild(document.createTextNode(text)); // Append user text safely
     }
+    // --- End Markdown/Sanitization logic ---
 
     log.appendChild(msg);
-    log.scrollTop = log.scrollHeight;
+    // Scroll only if the log isn't already scrolled up by the user
+    // (Simple check: is scroll position near the bottom?)
+    if (log.scrollHeight - log.scrollTop <= log.clientHeight + 50) {
+         log.scrollTop = log.scrollHeight;
+    }
 }
-// *** END MODIFIED function ***
+
+
+// Modified function to parse Markdown, sanitize, AND SAVE history
+function appendAgentMessage(text, sender = 'ai') {
+    // 1. Render the message visually using the helper
+    renderMessageWithoutSaving(text, sender);
+
+    // 2. Add the new message to the in-memory array
+    chatHistory.push({ sender: sender, text: text });
+
+    // 3. Save the updated array to sessionStorage
+    try {
+        // Limit history size to prevent storage issues (e.g., last 50 messages)
+        const maxHistoryLength = 50;
+        if (chatHistory.length > maxHistoryLength) {
+             chatHistory = chatHistory.slice(-maxHistoryLength); // Keep only the last N messages
+        }
+        sessionStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatHistory));
+        // console.log(`Chat history saved (${chatHistory.length} messages).`); // Debug
+    } catch (e) {
+        console.error("Error saving chat history to sessionStorage:", e);
+        if (e.name === 'QuotaExceededError') {
+             // Simple recovery: try clearing and saving just the last message
+             console.warn("SessionStorage quota exceeded. Clearing history and saving last message.");
+             chatHistory = chatHistory.slice(-1); // Keep only the last one
+             try {
+                 sessionStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatHistory));
+             } catch (e2) {
+                 console.error("Failed to save even the last message after quota error:", e2);
+             }
+        }
+    }
+}
 
 function setAgentStatus(status) {
     const statusEl = document.getElementById('agent-status');
     if (statusEl) { // Check if element exists
-        statusEl.textContent = status;
+        statusEl.textContent = status ? `(${status})` : ''; // Add parentheses for visual separation
     }
 }
 
 async function sendAgentMessage() {
     const input = document.getElementById('agent-chat-input');
     const agentTypeSelect = document.getElementById('agent-type-select');
-    // --- Get TTS toggle state ---
     const ttsToggle = document.getElementById('tts-toggle');
-    // --- END ---
+    const sendBtn = document.getElementById('agent-chat-send');
 
-    if (!input || !agentTypeSelect || !ttsToggle) { // Add check for ttsToggle
-        console.error("Chat input, agent select, or TTS toggle missing.");
+    if (!input || !agentTypeSelect || !ttsToggle || !sendBtn) {
+        console.error("Chat input, agent select, TTS toggle, or send button missing.");
+        setAgentStatus("UI Error");
         return;
     }
+
     const agentType = agentTypeSelect.value;
     const message = input.value.trim();
-    // --- Read toggle state ---
     const isTtsEnabledByUser = ttsToggle.checked;
-    // --- END ---
 
     if (!message) return;
 
-    appendAgentMessage(message, 'user'); // Uses the updated function
-    input.value = '';
-    setAgentStatus('...');
+    appendAgentMessage(message, 'user'); // Adds to UI and saves history
+    input.value = ''; // Clear input
+    input.disabled = true; // Disable input during processing
+    sendBtn.disabled = true; // Disable send button
+    setAgentStatus('...'); // Indicate thinking
 
-    // Optionally, collect dashboard data from your app (dummy for now)
-    // Using window.getDashboardData is a placeholder; in this app, data is in window.dashboardConfig
-    // but for the chat API, the required data is already in the template, so we don't need
-    // to dynamically fetch it here unless it changes after page load.
-    const dashboardData = window.dashboardConfig ? window.dashboardConfig.initialData : {}; // Example if needed
+    // Use dashboard data if available (from dashboard.js context)
+    const dashboardData = window.dashboardConfig ? window.dashboardConfig.initialData : {};
 
     try {
-        const response = await fetch('/api/chat', { // Ensure this URL is correct for your app context
+        // Ensure correct API endpoint (might be relative or absolute depending on context)
+        // Using a relative URL assumes agent_chat.js is used on pages served from the main blueprint root
+        const apiUrl = '/api/chat'; // Or fetch from a config if needed: window.chatConfig.apiUrl
+
+        const response = await fetch(apiUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({
                 prompt: message,
-                // Pass dashboard data directly if needed, or let backend access user session
-                dashboard_data: dashboardData,
+                dashboard_data: dashboardData, // Backend might re-fetch fresh data anyway
                 agent_type: agentType,
-                // --- Send user's TTS preference ---
                 tts_enabled: isTtsEnabledByUser
-                // --- END ---
             })
         });
-        const data = await response.json();
+
+        const data = await response.json(); // Try parsing JSON regardless of status
+
+        if (!response.ok) {
+             // Use error from JSON body if available, otherwise use status text
+             throw new Error(data.error || `Server error: ${response.status} ${response.statusText}`);
+        }
+
         if (data.response) {
-            appendAgentMessage(data.response, 'ai'); // Uses the updated function
-            // The playAgentAudio function already checks the toggle before playing,
-            // but now it will often receive null for audio_url if TTS was disabled
+            appendAgentMessage(data.response, 'ai'); // Adds AI response to UI and saves history
             if (data.audio_url) {
-                playAgentAudio(data.audio_url);
+                playAgentAudio(data.audio_url); // Play audio if URL provided and TTS toggle is checked
             }
-        } else if (data.error) { // Handle specific error from server JSON
+        } else if (data.error) { // Handle specific error message from server JSON even on 2xx response
              appendAgentMessage(`Sorry, there was an error: ${data.error}`, 'ai');
         } else {
-            appendAgentMessage('Sorry, the assistant is unavailable or sent an empty response.', 'ai'); // Uses the updated function
+            // Handle unexpected success response format
+             appendAgentMessage('Sorry, the assistant sent an empty or unexpected response.', 'ai');
         }
+
     } catch (err) {
-        console.error("Error sending agent message:", err);
-        appendAgentMessage(`Error contacting AI service: ${err.message}`, 'ai'); // Uses the updated function
+        console.error("Error sending/receiving agent message:", err);
+        // Provide user feedback about the error
+        appendAgentMessage(`Error: ${err.message || 'Could not contact AI service.'}`, 'ai');
+    } finally {
+        // Always re-enable input and clear status
+        input.disabled = false;
+        sendBtn.disabled = false;
+        setAgentStatus('');
+        input.focus(); // Focus input for next message
     }
-    setAgentStatus('');
 }
 
+
 function playAgentAudio(audioUrl) {
-    // Check if TTS is enabled via the toggle before playing
     const ttsToggle = document.getElementById('tts-toggle');
+    // Check toggle *before* attempting to play
     if (!ttsToggle || !ttsToggle.checked) {
         console.log("TTS is disabled via toggle. Skipping audio playback.");
         return;
     }
+
     const audio = document.getElementById('agent-chat-audio');
     if (!audio) {
         console.error("Agent chat audio element not found!");
         return;
     }
+
+    // Stop any currently playing audio before starting new one
+    if (!audio.paused) {
+        audio.pause();
+        audio.currentTime = 0;
+    }
+
     audio.src = audioUrl;
-    audio.style.display = 'block'; // Make visible for debugging if needed, usually hidden
-    audio.onplay = () => console.log('Agent audio playing:', audioUrl);
-    audio.onerror = (e) => {
-        console.error('Error playing agent audio:', e);
-        // Avoid alert in production, log instead or use subtle UI feedback
-        // alert('Could not play agent audio. Check browser console for details.');
-    };
-    audio.play().catch(err => {
-        console.error('Audio play() failed:', err);
-        // Provide more user-friendly feedback if possible
-        if (err.name === 'NotAllowedError') {
-            // Avoid alert in production
-            console.warn('Audio playback failed. Browsers often require user interaction (like a click) before playing audio.');
-            // alert('Audio playback failed. Browsers often require user interaction (like a click) before playing audio. Please click anywhere on the page and try sending the message again.');
-        } else {
-            // Avoid alert in production
-            console.error('An unexpected error occurred during audio playback.');
-            // alert('Audio playback failed. Check browser console for details.');
-        }
-    });
+    // Removed style.display change
+
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+        playPromise.then(_ => {
+            // Automatic playback started!
+            console.log('Agent audio playing:', audioUrl);
+            audio.onended = () => console.log('Agent audio finished.');
+        })
+        .catch(error => {
+            // Auto-play was prevented
+            console.error('Audio play() failed:', error);
+            if (error.name === 'NotAllowedError') {
+                 setAgentStatus("Audio blocked"); // Inform user subtly
+                 console.warn('Audio playback failed. Browser requires user interaction.');
+                 // Maybe add a button later to explicitly play the audio if needed
+            } else {
+                 setAgentStatus("Audio error");
+                 console.error('An unexpected error occurred during audio playback.');
+            }
+        });
+    }
+     audio.onerror = (e) => {
+        console.error('Error loading or playing agent audio:', e);
+        setAgentStatus("Audio error");
+     };
 }
 
 function setupAgentChatEvents() {
-    // Ensure elements exist before adding listeners
     const sendBtn = document.getElementById('agent-chat-send');
     const inputField = document.getElementById('agent-chat-input');
 
@@ -194,8 +269,8 @@ function setupAgentChatEvents() {
 
     if (inputField) {
         inputField.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) { // Send on Enter, not Shift+Enter
-                 e.preventDefault(); // Prevent default newline/form submission
+            if (e.key === 'Enter' && !e.shiftKey) {
+                 e.preventDefault();
                  sendAgentMessage();
             }
         });
@@ -204,99 +279,167 @@ function setupAgentChatEvents() {
     }
 }
 
-// --- Timer Event Hooks ---
-// Call this from your timer logic to trigger agent messages
+// --- Timer Event Hooks (Optional Integration) ---
+// Call this from timer logic (timer.js) if needed to populate input
 window.triggerAgentEvent = function(eventType) {
-    // Ensure UI elements are ready before triggering
-    const agentSelect = document.getElementById('agent-type-select');
     const agentInput = document.getElementById('agent-chat-input');
-
-    if (!agentSelect || !agentInput) {
+    if (!agentInput) {
         console.warn("Agent chat UI not ready, cannot trigger event:", eventType);
         return;
     }
 
-    const agentType = agentSelect.value;
     let prompt = '';
     if (eventType === 'timer_start') prompt = "I'm starting a new Pomodoro session! Any tips?";
-    else if (eventType === 'timer_complete') prompt = "I just finished a Pomodoro!";
-    else if (eventType === 'break_start') prompt = "It's break time. How should I recharge?";
-    else if (eventType === 'break_end') prompt = "Break's over. Any advice for getting back to work?";
+    else if (eventType === 'timer_complete') prompt = "I just finished a Pomodoro work session!";
+    else if (eventType === 'break_start') prompt = "It's break time. How should I recharge effectively?";
+    else if (eventType === 'break_end') prompt = "Break's over. Any advice for getting back into focus?";
 
     if (prompt) {
-        // Don't automatically send, just populate the input for the user to send if they want
-        agentInput.value = prompt;
-        // Optionally focus the input
-        // agentInput.focus();
-        // Removed automatic sendAgentMessage() call here
+        agentInput.value = prompt; // Populate input, let user send
+        // agentInput.focus(); // Optionally focus
     }
 };
 
-// --- Initialize on page load ---
+// --- Initialization on page load ---
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if the chatbox container already exists (e.g., from dashboard.js)
-    // Only create if it doesn't exist - avoids duplicate chat boxes if scripts run on same page
-    if (!document.getElementById('agent-chatbox')) {
-         createAgentChatBox();
-         setupAgentChatEvents();
-    } else {
-        console.log("Agent chatbox already exists, reusing existing elements.");
-        // If reusing, make sure events are attached (might need adjustment if conflicts arise)
-        // Ensure listeners are attached even if box exists
-        setupAgentChatEvents();
+    console.log("Agent chat DOMContentLoaded. Initializing...");
+
+    // 1. Ensure the chatbox UI exists (create if not)
+    createAgentChatBox(); // Safe to call even if it exists
+
+    // 2. Load and Render History from Session Storage
+    try {
+        const storedHistory = sessionStorage.getItem(CHAT_HISTORY_KEY);
+        const log = document.getElementById('agent-chat-log'); // Get log element
+
+        if (storedHistory && log) {
+            chatHistory = JSON.parse(storedHistory); // Load into memory
+            console.log(`Loaded ${chatHistory.length} messages from sessionStorage.`);
+
+            // Render loaded messages
+            chatHistory.forEach(message => {
+                renderMessageWithoutSaving(message.text, message.sender);
+            });
+            // Ensure scroll is at the bottom after loading history
+             log.scrollTop = log.scrollHeight;
+
+        } else if (log && log.children.length === 0) { // Add default greeting ONLY if no history AND log is empty
+            console.log("No chat history found or log was empty. Adding default greeting.");
+             // This call will render AND save the greeting as the first item
+            appendAgentMessage("Hello! Ask me about your Pomodoro stats or for productivity tips.", 'ai');
+        } else {
+             console.log("No chat history found in sessionStorage or log wasn't empty.");
+        }
+    } catch (e) {
+        console.error("Error loading/parsing chat history:", e);
+        sessionStorage.removeItem(CHAT_HISTORY_KEY); // Clear potentially corrupted data
+        chatHistory = []; // Reset in-memory history
     }
+
+    // 3. Setup Event Listeners
+    setupAgentChatEvents();
+
+    // 4. Set Initial TTS Toggle State
+    const ttsToggle = document.getElementById('tts-toggle');
+    if (ttsToggle) {
+        // Default to checked unless global config explicitly disables it
+        let defaultTtsState = true;
+        // Check if a global config object exists from the main app templates
+        if (window.pomodoroConfig && typeof window.pomodoroConfig.ttsGloballyEnabled === 'boolean') {
+            defaultTtsState = window.pomodoroConfig.ttsGloballyEnabled;
+        } else if (window.dashboardConfig && typeof window.dashboardConfig.ttsGloballyEnabled === 'boolean') {
+             defaultTtsState = window.dashboardConfig.ttsGloballyEnabled;
+        }
+        ttsToggle.checked = defaultTtsState;
+        console.log(`Initial TTS toggle state set to: ${defaultTtsState}`);
+    } else {
+        console.error("TTS toggle element not found!");
+    }
+
+    console.log("Agent chat initialization complete.");
 });
 
-// --- Minimal styles (could move to CSS file) ---
-// Avoid adding style if it already exists (e.g., from dashboard.js or another instance)
+
+// --- Minimal styles (ensure these are loaded, e.g., via base CSS or here) ---
+// Added visually-hidden class for accessibility labels
 if (!document.getElementById('agent-chat-styles')) {
     const style = document.createElement('style');
-    style.id = 'agent-chat-styles'; // Add ID to check for existence
+    style.id = 'agent-chat-styles';
     style.textContent = `
-    #agent-chatbox {
-        position: fixed; bottom: 24px; right: 24px; width: 340px; z-index: 9999;
-        background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-        font-family: inherit; border: 1px solid #e0e0e0;
-        max-height: calc(100vh - 48px); /* Prevent overflow on small screens */
-        display: flex; /* Use flex for better height management */
-        flex-direction: column;
+    .visually-hidden {
+        position: absolute; width: 1px; height: 1px;
+        padding: 0; margin: -1px; overflow: hidden;
+        clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
     }
-    .agent-chat-header { padding: 12px; font-weight: bold; background: #f7f7fa; border-bottom: 1px solid #eee; border-radius: 12px 12px 0 0; flex-shrink: 0; }
-    #agent-status { float: right; font-size: 0.9em; color: #888; }
+    #agent-chatbox {
+        position: fixed; bottom: 20px; right: 20px; width: 350px; z-index: 1050; /* Higher z-index */
+        background: #ffffff; border-radius: 10px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        font-family: inherit; border: 1px solid #d0d0d0;
+        max-height: calc(100vh - 40px); /* Prevent full screen height */
+        display: flex;
+        flex-direction: column;
+        font-size: 0.95rem; /* Base font size */
+        transition: box-shadow 0.3s ease;
+    }
+    #agent-chatbox:focus-within { /* Highlight when interacting */
+        box-shadow: 0 8px 25px rgba(0, 123, 255, 0.2);
+    }
+    .agent-chat-header {
+        padding: 10px 14px; font-weight: 600; color: #333;
+        background: #f7f7f9; border-bottom: 1px solid #eee;
+        border-radius: 10px 10px 0 0; flex-shrink: 0;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    #agent-status { font-size: 0.85em; color: #777; font-weight: 500; }
     .agent-chat-log {
-        /* max-height: 180px; /* Removed fixed max-height */
         flex-grow: 1; /* Allow log to take available space */
         overflow-y: auto;
-        padding: 10px;
-        background: #fafbfc;
+        padding: 12px;
+        background: #fdfdfd;
+        min-height: 150px; /* Ensure minimum height */
+        max-height: 350px; /* Limit max height */
     }
-    .agent-message { margin-bottom: 7px; padding: 7px 10px; border-radius: 8px; font-size: 0.98em; max-width: 90%; word-wrap: break-word; line-height: 1.4; clear: both; }
-    .agent-message.user { background: #e6f0fa; text-align: left; float: right; border-bottom-right-radius: 2px; margin-left: auto; } /* Adjusted for float */
-    .agent-message.ai { background: #f1f1f1; text-align: left; float: left; border-bottom-left-radius: 2px; margin-right: auto; } /* Adjusted for float */
+    .agent-message { margin-bottom: 8px; padding: 8px 12px; border-radius: 12px; max-width: 88%; word-wrap: break-word; line-height: 1.45; clear: both; box-shadow: 0 1px 2px rgba(0,0,0,0.05);}
+    .agent-message.user { background: #007bff; color: white; text-align: left; float: right; border-bottom-right-radius: 4px; margin-left: auto; }
+    .agent-message.ai { background: #e9ecef; color: #343a40; text-align: left; float: left; border-bottom-left-radius: 4px; margin-right: auto; }
+    .agent-message strong { font-weight: 600; } /* Bolder prefix */
     /* Styling for markdown elements inside AI messages */
     .agent-message.ai p { margin: 0.5em 0; }
     .agent-message.ai ul, .agent-message.ai ol { margin: 0.5em 0 0.5em 1.2em; padding-left: 0.5em; }
-    .agent-message.ai li { margin-bottom: 0.2em; }
-    .agent-message.ai strong { font-weight: bold; }
+    .agent-message.ai li { margin-bottom: 0.3em; }
     .agent-message.ai em { font-style: italic; }
-    .agent-message.ai a { color: #007bff; text-decoration: underline; } /* Style links */
-    .agent-message.ai a:hover { color: #0056b3; }
-    .agent-message.ai code { background-color: #eee; padding: 0.1em 0.3em; border-radius: 3px; font-family: monospace; font-size: 0.95em; }
-    .agent-message.ai pre { background-color: #eee; padding: 0.5em; border-radius: 4px; overflow-x: auto; font-family: monospace; font-size: 0.9em; }
-    .agent-message.ai pre code { background-color: transparent; padding: 0; border-radius: 0; }
-    .agent-message.ai blockquote { border-left: 3px solid #ccc; padding-left: 0.8em; margin-left: 0.2em; color: #555; }
-    .agent-chat-controls.agent-chat-controls-col { display: flex; flex-direction: column; gap: 7px; padding: 10px; border-top: 1px solid #eee; flex-shrink: 0; }
-    .agent-chat-row { display: flex; gap: 6px; align-items: center; /* Align items vertically */ }
-    .agent-chat-input-row { margin-top: 2px; }
-    #agent-type-select { flex: 1 1 auto; font-size: 0.95em; padding: 5px; border-radius: 4px; border: 1px solid #ccc; background-color: #fff; height: 34px; /* Match button height approx */ }
-    #agent-chat-input { flex: 1 1 100%; font-size: 1em; border-radius: 5px; border: 1px solid #ccc; padding: 7px 10px; min-width: 0; height: 34px; box-sizing: border-box; }
-    #agent-chat-send { flex: 0 0 auto; padding: 7px 12px; background: #007bff; color: #fff; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-left: 7px; font-size: 0.95em; height: 34px; }
+    .agent-message.ai a { color: #0056b3; text-decoration: underline; }
+    .agent-message.ai a:hover { color: #003d80; }
+    .agent-message.ai code { background-color: #dde1e4; padding: 0.15em 0.4em; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+    .agent-message.ai pre { background-color: #dde1e4; padding: 0.6em; border-radius: 5px; overflow-x: auto; font-family: monospace; font-size: 0.85em; margin: 0.5em 0; }
+    .agent-message.ai pre code { background-color: transparent; padding: 0; border-radius: 0; font-size: 1em; }
+    .agent-message.ai blockquote { border-left: 3px solid #adb5bd; padding-left: 0.8em; margin: 0.5em 0 0.5em 0.2em; color: #495057; font-style: italic; }
+    .agent-chat-controls.agent-chat-controls-col { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-top: 1px solid #eee; flex-shrink: 0; background: #f7f7f9; }
+    .agent-chat-row { display: flex; gap: 8px; align-items: center; }
+    #agent-type-select { flex-grow: 1; font-size: 0.9em; padding: 6px 8px; border-radius: 5px; border: 1px solid #ccc; background-color: #fff; height: 36px; min-width: 80px; }
+    #agent-chat-input { flex-grow: 1; font-size: 1em; border-radius: 5px; border: 1px solid #ccc; padding: 8px 10px; min-width: 0; height: 36px; box-sizing: border-box; }
+    #agent-chat-input:disabled { background-color: #e9ecef; cursor: not-allowed; }
+    #agent-chat-send { flex-shrink: 0; padding: 0 14px; background: #007bff; color: #fff; border: none; border-radius: 5px; font-weight: 600; cursor: pointer; font-size: 0.95em; height: 36px; transition: background-color 0.2s ease; }
     #agent-chat-send:hover { background: #0056b3; }
-    .agent-chat-settings { padding: 8px; border-top: 1px solid #eee; text-align: right; flex-shrink: 0; font-size: 0.9em; background: #f7f7fa; border-radius: 0 0 12px 12px; }
-    .agent-chat-settings label { color: #555; cursor: pointer; }
-    .agent-chat-settings input[type="checkbox"] { margin-right: 4px; vertical-align: middle; cursor: pointer; }
+    #agent-chat-send:disabled { background: #a0cfff; cursor: not-allowed; }
+    .agent-chat-settings { padding: 8px 14px; border-top: 1px solid #eee; text-align: right; flex-shrink: 0; font-size: 0.9em; background: #f7f7f9; border-radius: 0 0 10px 10px; }
+    .agent-chat-settings label { color: #555; cursor: pointer; display: inline-flex; align-items: center; }
+    .agent-chat-settings input[type="checkbox"] { margin-right: 5px; vertical-align: middle; cursor: pointer; height: 14px; width: 14px; }
+
+    @media (max-width: 400px) { /* Adjustments for very small screens */
+        #agent-chatbox { width: calc(100vw - 20px); bottom: 10px; right: 10px; font-size: 0.9rem; }
+        .agent-chat-log { max-height: 300px; }
+        #agent-chat-send { padding: 0 10px; }
+    }
     `;
-    document.head.appendChild(style);
+    // Add styles safely to head
+    try {
+        document.head.appendChild(style);
+    } catch (e) { // Handle environments where document.head might not be standard (less common in browsers)
+        console.error("Could not append chat styles to document head:", e);
+        try { document.getElementsByTagName('head')[0].appendChild(style); } catch (e2) {} // Fallback
+    }
 } else {
-    console.log("Agent chat styles already added.");
+    // console.log("Agent chat styles already added."); // Optional: Can be noisy
 }

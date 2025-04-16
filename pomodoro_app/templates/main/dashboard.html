@@ -3,8 +3,8 @@
   <h2 class="dashboard-main-title">Dashboard</h2>
   <p>Welcome, {{ current_user.name }}! Here are your productivity stats:</p>
 
-  {# Container to hold data attributes for JS (remains the same) #}
-  {# This div is primarily for passing data to dashboard.js #}
+  {# Container to hold data attributes for JS timestamp formatting #}
+  {# This div is NO LONGER used for passing chat data #}
   <div id="dashboard-data"
        data-total-focus="{{ total_focus }}"
        data-total-break="{{ total_break }}"
@@ -14,12 +14,11 @@
        data-week-focus="{{ week_focus }}"
        data-week-sessions="{{ week_sessions }}"
        >
-    {# No direct visual content here anymore, just data attributes #}
+    {# No visual content here #}
   </div>
 
-  {# +++ NEW: Flex Container for the Stats Columns +++ #}
+  {# Stats Columns (structure remains the same) #}
   <div class="stats-columns-container">
-
     {# Column 1: Overall Stats #}
     <div class="stats-column">
       <h3 class="dashboard-section-title">Overall Stats</h3>
@@ -27,6 +26,7 @@
         <li><strong>Total Focused Time:</strong> {{ total_focus }} minutes</li>
         <li><strong>Total Break Time:</strong> {{ total_break }} minutes</li>
         <li><strong>Completed Pomodoro Sessions:</strong> {{ total_sessions }}</li>
+        <li><strong>Total Points Earned:</strong> {{ current_user.total_points | int }}</li> {# Display total points #}
       </ul>
     </div> {# End stats-column (Overall) #}
 
@@ -47,27 +47,26 @@
         <li><strong>Sessions This Week:</strong> {{ week_sessions }}</li>
       </ul>
     </div> {# End stats-column (Week) #}
+  </div> {# End stats-columns-container #}
 
-  </div> {# +++ End stats-columns-container +++ #}
 
-
-  {# Past Sessions Section (structure remains the same, including scrollable container) #}
-  <h3>Past Sessions</h3>
+  {# Past Sessions Section (structure remains the same) #}
+  <h3 class="dashboard-section-title">Past Sessions</h3> {# Applied consistent title style #}
   {% if sessions %}
-    <div class="sessions-table-container"> {# Scrollable container #}
+    <div class="sessions-table-container">
       <table class="sessions-table">
         <thead>
-          <tr><th>Date & Time (Your Local)</th><th>Work (min)</th><th>Break (min)</th></tr>
+          <tr><th>Date & Time (Your Local)</th><th>Work (min)</th><th>Break (min)</th><th>Points</th></tr>
         </thead>
         <tbody>
           {% for sess in sessions %}
             <tr>
-              {# JS formats this based on data-timestamp #}
               <td class="local-timestamp" data-timestamp="{{ sess.timestamp.isoformat() if sess.timestamp else '' }}">
                  {% if sess.timestamp %}{{ sess.timestamp.isoformat() }}{% else %}N/A{% endif %}
               </td>
               <td>{{ sess.work_duration }}</td>
               <td>{{ sess.break_duration }}</td>
+              <td>{{ sess.points_earned if sess.points_earned is not none else '--' }}</td> {# Show points earned for that session #}
             </tr>
           {% endfor %}
         </tbody>
@@ -77,50 +76,25 @@
     <p>No sessions recorded yet. <a href="{{ url_for('main.timer') }}">Start your first Pomodoro!</a></p>
   {% endif %}
 
-  {# Chat Agent Section (structure remains the same) #}
-  {% if chat_enabled %}
-  <div class="chat-agent-section">
-    <h3>Productivity Assistant</h3>
-    <p>Ask questions about your stats or get productivity tips!</p>
-    <div id="chat-log" class="chat-log">
-      {# Initial greeting message #}
-      <div class="message ai">Hello {{ current_user.name }}! How can I help you analyze your Pomodoro stats or improve your focus today?</div>
-      {# Further messages added by JS #}
-    </div>
-    <div class="chat-input-area">
-      <input type="text" id="chat-input" placeholder="Type your message..." aria-label="Chat message input">
-      <button id="chat-send-btn" class="btn">Send</button>
-    </div>
-    <div id="chat-status" class="chat-status" aria-live="polite"></div> {# For loading/error messages #}
-  </div>
-  {% else %}
-  <div class="chat-agent-section disabled">
-      <h3>Productivity Assistant</h3>
-      <p><i>Chat feature is currently unavailable. Please check server configuration (OpenAI key).</i></p>
-  </div>
-  {% endif %}
-  {# +++ End Chat Agent Section +++ #}
+  {# --- Removed Embedded Chat Agent Section --- #}
+  {# The floating widget from agent_chat.js will be used instead #}
 
-
-  {# +++ NEW: Add CDN links for Marked.js and DOMPurify +++ #}
-  {# Place these BEFORE your dashboard.js script #}
+  {# +++ Load Libraries for Floating Chat Widget +++ #}
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script> {# Add DOMPurify #}
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
-  {# +++ Inline Script to Pass Config Data to dashboard.js (Remains the same) +++ #}
-  {# This block defines data needed by the external JS file #}
+  {# +++ Load the Floating Agent Chat Widget +++ #}
   <script>
-    window.dashboardConfig = {
-      // Pass the chat enabled status (as true/false)
-      chatEnabled: {{ chat_enabled | tojson }},
-      // Pass the URL for the chat API endpoint
-      apiChatUrl: "{{ url_for('main.api_chat') }}"
-      // Add any other config needed by dashboard.js here
+    // Optional: Pass global config needed by agent_chat.js if necessary
+    // Example: Setting initial TTS toggle state based on server config
+    window.dashboardConfig = { // Rename or use a generic name like window.pageConfig
+        ttsGloballyEnabled: {{ config.get('TTS_ENABLED', true) | tojson }}
+        // Add other config data if agent_chat.js needs it
     };
   </script>
+  <script src="{{ url_for('static', filename='js/agent_chat.js') }}" defer></script>
 
-  {# +++ Link the External JavaScript File (Remains the same) +++ #}
-  {# Loads and executes the main dashboard JavaScript logic #}
+  {# +++ Load Dashboard Specific JS (for timestamp formatting) +++ #}
   <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
 
 {% endblock %}

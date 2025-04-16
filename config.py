@@ -31,7 +31,7 @@ class Config:
     FEATURE_CHAT_ENABLED = bool(OPENAI_API_KEY)  # Automatically enable chat if key exists
 
     # --- NEW: TTS Toggle Flag ---
-    TTS_ENABLED = os.environ.get('TTS_ENABLED', 'true').lower() == 'true'
+    TTS_ENABLED = os.environ.get('TTS_ENABLED', 'true').lower() == 'false'
 
 
 class DevelopmentConfig(Config):

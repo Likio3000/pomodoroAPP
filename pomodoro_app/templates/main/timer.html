@@ -20,13 +20,11 @@
       <div class="timer-buttons">
           <button id="start-btn" class="btn">Start</button>
           <button id="pause-btn" class="btn" style="display: none;">Pause</button>
-          <!-- Reset button structure remains, JS controls visibility -->
           <button id="reset-btn" class="btn" style="display: none;">Reset</button>
       </div>
     </div>
 
     <div id="timer-display" class="timer-display">00:00</div>
-    <!-- Initial status message, JS will update -->
     <div id="status-message" class="status-message" aria-live="polite">Checking server state...</div>
 
     <!-- Audio element for alarm -->
@@ -37,7 +35,6 @@
         <span>Active Multiplier:</span>
         <span id="active-multiplier-display" class="active-multiplier">
             {{ active_multiplier | round(1) }}x
-            <!-- Default context, JS will update if timer is active -->
             <span class="multiplier-context">(Next Session)</span>
         </span>
     </div>
@@ -51,11 +48,8 @@
                 <tr><th>Condition</th><th>Bonus</th><th>Details</th></tr>
             </thead>
             <tbody>
-                {# Loop through all defined rules #}
                 {% for rule in multiplier_rules %}
-                    {# Check if this rule's ID is in the set of active IDs passed from backend #}
                     {% set is_active = rule.id in active_rule_ids %}
-                    {# Add 'active-multiplier-rule' class if the rule is active #}
                     <tr class="{{ 'base-rate' if rule.id == 'base' else '' }} {{ 'active-multiplier-rule' if is_active else '' }}">
                         <td>{{ rule.condition }}</td>
                         <td>{% if rule.bonus > 0 %}+{{ rule.bonus | round(1) }}x{% elif rule.id == 'base' %}1.0x Base{% else %}-{% endif %}</td>
@@ -64,7 +58,7 @@
                 {% endfor %}
             </tbody>
         </table>
-        <p><em>Note: Highest applicable bonus from streaks and duration typically applies. Bonuses stack additively.</em></p>
+        <p><em>Note: Bonuses stack additively.</em></p> {# Simplified note #}
     </div>
 
   </div> {# End of timer-component div #}
@@ -77,29 +71,28 @@
         complete: "{{ url_for('main.api_complete_phase') }}",
         getState: "{{ url_for('main.api_get_timer_state') }}",
         reset: "{{ url_for('main.api_reset_timer') }}",
-        resume: "{{ url_for('main.api_resume_timer') }}" // <-- Added resume URL
+        resume: "{{ url_for('main.api_resume_timer') }}"
       },
       initialData: {
         totalPoints: {{ total_points | int }},
         activeMultiplier: {{ active_multiplier | float }}
-        // --- activeState removed ---
-      }
-      // active_rule_ids is now used directly in the Jinja template above, not needed in JS config
+      },
+      // Pass global TTS setting for agent_chat.js initialization
+      ttsGloballyEnabled: {{ config.get('TTS_ENABLED', false) | tojson }}
     };
   </script>
 
-  {# Link external JS files. Order matters: logic/api first, then the main timer script. #}
-  {# The 'defer' attribute ensures they execute in order after the DOM is parsed. #}
+  {# Link external JS files for timer logic #}
   <script src="{{ url_for('static', filename='js/timer_logic.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/timer_api.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/timer.js') }}" defer></script>
 
-  {# +++ ADDED CDN links for Marked.js and DOMPurify +++ #}
-  {# Place these BEFORE agent_chat.js #}
+  {# +++ Load Libraries for Floating Chat Widget +++ #}
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
-  {# Agent chat script (load AFTER marked and purify) #}
+  {# +++ Load the Floating Agent Chat Widget +++ #}
+  {# It will use window.pomodoroConfig if needed #}
   <script src="{{ url_for('static', filename='js/agent_chat.js') }}" defer></script>
 
 {% endblock %}
