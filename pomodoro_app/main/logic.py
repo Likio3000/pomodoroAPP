@@ -23,76 +23,82 @@ MAX_CONSISTENCY_GAP_HOURS = 2 # How long between sessions before consistency str
 
 # --- Helper Functions ---
 
+# --- MODIFIED FUNCTION: Fully Additive Calculation ---
 def calculate_current_multiplier(user, work_duration_this_session=0):
-    """Calculates the applicable multiplier based on user streaks AND PLANNED session duration."""
+    """
+    Calculates the applicable multiplier based on user streaks AND PLANNED session duration.
+    Bonuses are fully additive.
+    """
     if not user: # Safety check
         return 1.0
 
-    base_multiplier = 1.0
+    total_bonus = 0.0
 
-    # --- Calculate bonuses independently ---
-    streak_bonus = 0.0
-    # Daily Streak Bonus (Highest applies)
-    if user.daily_streak >= 7:
-        streak_bonus = max(streak_bonus, 0.2)
-    elif user.daily_streak >= 3:
-        streak_bonus = max(streak_bonus, 0.1)
-
-    # Consistency Streak Bonus (Highest applies)
-    if user.consecutive_sessions >= 5:
-        streak_bonus = max(streak_bonus, 0.2)
-    elif user.consecutive_sessions >= 3:
-        streak_bonus = max(streak_bonus, 0.1)
-
-    # PLANNED Session Duration Bonus (Highest applies)
-    duration_bonus = 0.0
-    # Use the work_duration_this_session which should be the PLANNED duration
+    # Duration Bonuses (Additive - higher duration implies lower one is also met)
+    if work_duration_this_session > 25:
+        total_bonus += 0.1 # Add bonus for > 25 mins
     if work_duration_this_session > 45:
-         duration_bonus = max(duration_bonus, 0.2)
-    elif work_duration_this_session > 25:
-         duration_bonus = max(duration_bonus, 0.1)
+        total_bonus += 0.2 # Add *additional* bonus for > 45 mins (0.1 + 0.1 = 0.2 total)
 
-    # Combine bonuses additively
-    total_multiplier = base_multiplier + streak_bonus + duration_bonus
+    # Consistency Streak Bonuses (Additive)
+    if user.consecutive_sessions >= 3:
+        total_bonus += 0.1 # Add bonus for 3+
+    if user.consecutive_sessions >= 5:
+        total_bonus += 0.2 # Add *additional* bonus for 5+ (0.1 + 0.1 = 0.2 total)
 
-    # Optional: Cap the multiplier if desired (e.g., max 2.0x)
-    # total_multiplier = min(total_multiplier, 2.0)
+    # Daily Streak Bonuses (Additive)
+    if user.daily_streak >= 3:
+        total_bonus += 0.1 # Add bonus for 3+
+    if user.daily_streak >= 7:
+        total_bonus += 0.2 # Add *additional* bonus for 7+ (0.1 + 0.1 = 0.2 total)
 
-    current_app.logger.debug(f"Multiplier Calc for User {user.id}: Streaks={streak_bonus:.1f}, PlannedDuration({work_duration_this_session}min)={duration_bonus:.1f} -> Total={total_multiplier:.1f}")
+    # Base multiplier is always 1.0
+    base_multiplier = 1.0
+    total_multiplier = base_multiplier + total_bonus
+
+    # Optional: Cap the multiplier if desired (e.g., max 2.5x)
+    # total_multiplier = min(total_multiplier, 2.5)
+
+    current_app.logger.debug(f"Additive Multiplier Calc for User {user.id}: Total Bonus={total_bonus:.1f} -> Total Multiplier={total_multiplier:.1f}")
     return round(total_multiplier, 2) # Round to avoid float issues
+# --- END MODIFIED FUNCTION ---
 
-# +++ NEW FUNCTION +++
+
+# --- REVERTED FUNCTION: Show all met rules ---
 def get_active_multiplier_rules(user, work_duration_this_session=0):
-    """Determines which multiplier rules are currently met."""
+    """
+    Determines which multiplier rule conditions are currently met.
+    Returns all rule IDs that apply, matching the additive calculation.
+    """
     active_rule_ids = set()
     if not user:
         return active_rule_ids
 
-    # Base rate is always applicable conceptually during work, add it
+    # Base rate is always applicable conceptually during work
     active_rule_ids.add('base')
 
     # --- Check each rule condition ---
-    # Planned Session Duration
+    # Session Duration (Both can be active if > 45)
     if work_duration_this_session > 25:
         active_rule_ids.add('focus25')
     if work_duration_this_session > 45:
-        active_rule_ids.add('focus45') # Note: If 45 is active, 25 is also active
+        active_rule_ids.add('focus45')
 
-    # Consistency Streak
+    # Consistency Streak (Both can be active if >= 5)
     if user.consecutive_sessions >= 3:
         active_rule_ids.add('consecutive3')
     if user.consecutive_sessions >= 5:
-        active_rule_ids.add('consecutive5') # Note: If 5 is active, 3 is also active
+        active_rule_ids.add('consecutive5')
 
-    # Daily Streak
+    # Daily Streak (Both can be active if >= 7)
     if user.daily_streak >= 3:
         active_rule_ids.add('daily3')
     if user.daily_streak >= 7:
-        active_rule_ids.add('daily7') # Note: If 7 is active, 3 is also active
+        active_rule_ids.add('daily7')
 
-    current_app.logger.debug(f"Active Rule IDs for User {user.id} (Duration: {work_duration_this_session}): {active_rule_ids}")
+    current_app.logger.debug(f"All Met Rule IDs for User {user.id} (Duration: {work_duration_this_session}): {active_rule_ids}")
     return active_rule_ids
-# +++ END NEW FUNCTION +++
+# --- END REVERTED FUNCTION ---
 
 
 def update_streaks(user, now_utc):
