@@ -15,7 +15,7 @@ from pomodoro_app import db, limiter
 from pomodoro_app.models import User, PomodoroSession, ActiveTimerState
 
 # Import constants and helpers needed by these routes specifically
-from .logic import MULTIPLIER_RULES, calculate_current_multiplier
+from .logic import MULTIPLIER_RULES, calculate_current_multiplier, get_active_multiplier_rules # <-- Import new function
 
 # --- HTML Routes ---
 
@@ -50,10 +50,11 @@ def index():
 def timer():
     """Displays the timer page with points and multiplier info."""
     user_id = current_user.id
-    # --- active_state_info removed from here ---
     active_multiplier = 1.0
     total_points = 0
     user = None
+    active_rule_ids = set() # Initialize empty set for active rules
+    relevant_work_duration = 0 # Default for idle state
 
     try:
         user = db.session.get(User, user_id)
@@ -62,25 +63,34 @@ def timer():
              return redirect(url_for('auth.logout')) # Log out if user record missing
 
         total_points = user.total_points
-        active_state = db.session.get(ActiveTimerState, user_id) # Still useful for initial multiplier calc
+        active_state = db.session.get(ActiveTimerState, user_id) # Get current state
 
         if active_state:
-             # If state exists, multiplier comes from there (or use helper if needed)
-             # Use getattr for safety in case column was added later
+             # Use the multiplier stored in the state for the current phase
              active_multiplier = getattr(active_state, 'current_multiplier', 1.0)
-             current_app.logger.debug(f"Timer Route: Found active state for User {user_id}. Using multiplier: {active_multiplier}")
+             # Determine the relevant work duration for calculating *active* rules
+             # Use work_duration_minutes regardless of phase (work/break) as that's what multipliers apply to
+             relevant_work_duration = active_state.work_duration_minutes
+             current_app.logger.debug(f"Timer Route: Found active state for User {user_id}. Phase: {active_state.phase}. Multiplier: {active_multiplier}. Relevant duration for rules: {relevant_work_duration}")
         else:
              # Calculate potential multiplier for *next* session using the helper
-             active_multiplier = calculate_current_multiplier(user, 0) # Pass 0 duration for potential calc
-             current_app.logger.debug(f"Timer Route: No active state for User {user_id}. Potential next multiplier: {active_multiplier}")
+             # Use 0 duration for potential calculation to avoid showing duration bonus before start
+             relevant_work_duration = 0
+             active_multiplier = calculate_current_multiplier(user, relevant_work_duration)
+             current_app.logger.debug(f"Timer Route: No active state for User {user_id}. Potential next multiplier: {active_multiplier}. Relevant duration for rules: {relevant_work_duration}")
+
+        # Call the function to get the set of active rule IDs based on current user state and the relevant duration
+        active_rule_ids = get_active_multiplier_rules(user, relevant_work_duration)
 
     except SQLAlchemyError as e:
         current_app.logger.error(f"Timer Route: Database error loading data for User {user_id}: {e}", exc_info=True)
         # Attempt to get points even on error if user object was fetched earlier
         total_points = getattr(user, 'total_points', 0)
+        # Keep active_rule_ids empty on error
     except Exception as e:
          current_app.logger.error(f"Timer Route: Unexpected error for User {user_id}: {e}", exc_info=True)
          total_points = getattr(user, 'total_points', 0)
+         # Keep active_rule_ids empty on error
 
     # Get points per minute from config
     points_per_min_config = current_app.config.get('POINTS_PER_MINUTE', 10)
@@ -89,8 +99,8 @@ def timer():
         'main/timer.html',
         total_points=total_points,
         active_multiplier=active_multiplier,
-        multiplier_rules=MULTIPLIER_RULES, # Pass rules from logic.py
-        # --- active_state_info removed ---
+        multiplier_rules=MULTIPLIER_RULES, # Pass rules definitions
+        active_rule_ids=active_rule_ids, # Pass the set of active rule IDs
         config={'POINTS_PER_MINUTE': points_per_min_config} # Pass config needed by template
     )
 

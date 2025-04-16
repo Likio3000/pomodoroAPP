@@ -51,12 +51,16 @@
                 <tr><th>Condition</th><th>Bonus</th><th>Details</th></tr>
             </thead>
             <tbody>
+                {# Loop through all defined rules #}
                 {% for rule in multiplier_rules %}
-                <tr class="{{ 'base-rate' if rule.id == 'base' else '' }}">
-                    <td>{{ rule.condition }}</td>
-                    <td>{% if rule.bonus > 0 %}+{{ rule.bonus | round(1) }}x{% elif rule.id == 'base' %}1.0x Base{% else %}-{% endif %}</td>
-                    <td>{{ rule.details }}</td>
-                </tr>
+                    {# Check if this rule's ID is in the set of active IDs passed from backend #}
+                    {% set is_active = rule.id in active_rule_ids %}
+                    {# Add 'active-multiplier-rule' class if the rule is active #}
+                    <tr class="{{ 'base-rate' if rule.id == 'base' else '' }} {{ 'active-multiplier-rule' if is_active else '' }}">
+                        <td>{{ rule.condition }}</td>
+                        <td>{% if rule.bonus > 0 %}+{{ rule.bonus | round(1) }}x{% elif rule.id == 'base' %}1.0x Base{% else %}-{% endif %}</td>
+                        <td>{{ rule.details }}</td>
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -80,6 +84,7 @@
         activeMultiplier: {{ active_multiplier | float }}
         // --- activeState removed ---
       }
+      // active_rule_ids is now used directly in the Jinja template above, not needed in JS config
     };
   </script>
 

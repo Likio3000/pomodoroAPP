@@ -61,6 +61,40 @@ def calculate_current_multiplier(user, work_duration_this_session=0):
     current_app.logger.debug(f"Multiplier Calc for User {user.id}: Streaks={streak_bonus:.1f}, PlannedDuration({work_duration_this_session}min)={duration_bonus:.1f} -> Total={total_multiplier:.1f}")
     return round(total_multiplier, 2) # Round to avoid float issues
 
+# +++ NEW FUNCTION +++
+def get_active_multiplier_rules(user, work_duration_this_session=0):
+    """Determines which multiplier rules are currently met."""
+    active_rule_ids = set()
+    if not user:
+        return active_rule_ids
+
+    # Base rate is always applicable conceptually during work, add it
+    active_rule_ids.add('base')
+
+    # --- Check each rule condition ---
+    # Planned Session Duration
+    if work_duration_this_session > 25:
+        active_rule_ids.add('focus25')
+    if work_duration_this_session > 45:
+        active_rule_ids.add('focus45') # Note: If 45 is active, 25 is also active
+
+    # Consistency Streak
+    if user.consecutive_sessions >= 3:
+        active_rule_ids.add('consecutive3')
+    if user.consecutive_sessions >= 5:
+        active_rule_ids.add('consecutive5') # Note: If 5 is active, 3 is also active
+
+    # Daily Streak
+    if user.daily_streak >= 3:
+        active_rule_ids.add('daily3')
+    if user.daily_streak >= 7:
+        active_rule_ids.add('daily7') # Note: If 7 is active, 3 is also active
+
+    current_app.logger.debug(f"Active Rule IDs for User {user.id} (Duration: {work_duration_this_session}): {active_rule_ids}")
+    return active_rule_ids
+# +++ END NEW FUNCTION +++
+
+
 def update_streaks(user, now_utc):
     """Updates daily and consistency streaks based on the current time. Called on WORK phase completion."""
     if not user: # Safety check

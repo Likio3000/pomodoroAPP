@@ -435,6 +435,25 @@ h1, h2, h3 {
     font-size: 0.95em;
 }
 
+/* --- ADDED: Styling for active multiplier rules in the table --- */
+.multiplier-rules-table tbody tr.active-multiplier-rule {
+    background-color: #e8f5e9; /* Light green background */
+    font-weight: 600; /* Slightly bolder */
+    border-left: 3px solid #4CAF50; /* Green left border */
+    transition: background-color 0.2s ease-in-out;
+}
+
+/* Optionally change text color of the condition */
+.multiplier-rules-table tbody tr.active-multiplier-rule td:first-child {
+    color: #2e7d32; /* Darker green for condition text */
+}
+
+/* Adjust hover effect for active rules */
+.multiplier-rules-table tbody tr.active-multiplier-rule:hover {
+     background-color: #dcedc8; /* Slightly darker green on hover */
+}
+/* --- END OF ADDED STYLES --- */
+
 
 /* Dashboard Styles (Copied from previous state for completeness) */
 
