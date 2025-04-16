@@ -13,7 +13,10 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'default-dev-secret-key-CHANGE-ME')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Define database fallback for development if DATABASE_URL is not set
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'pomodoro_app', 'pomodoro-dev.db'))
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'DATABASE_URL',
+        'sqlite:///' + os.path.join(basedir, 'pomodoro_app', 'pomodoro-dev.db')
+    )
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')  # Will be None if not set
 
     # Optional: Configure logging level
@@ -21,7 +24,10 @@ class Config:
 
     # Rate Limiter default configuration (can be overridden)
     RATELIMIT_DEFAULT = "200 per day;50 per hour"
-    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')  # 'memory://' for single process, consider redis for multi-process
+    RATELIMIT_STORAGE_URI = os.environ.get(
+        'RATELIMIT_STORAGE_URI',
+        'memory://'
+    )  # 'memory://' for single process, consider redis for multi-process
 
     # Default values for Pomodoro (can be used if needed)
     DEFAULT_WORK_MINUTES = 25
@@ -31,7 +37,7 @@ class Config:
     FEATURE_CHAT_ENABLED = bool(OPENAI_API_KEY)  # Automatically enable chat if key exists
 
     # --- NEW: TTS Toggle Flag ---
-    TTS_ENABLED = os.environ.get('TTS_ENABLED', 'true').lower() in ('1','true','yes')
+    TTS_ENABLED = os.environ.get('TTS_ENABLED', 'true').lower() in ('1', 'true', 'yes')
 
 
 class DevelopmentConfig(Config):
@@ -39,7 +45,10 @@ class DevelopmentConfig(Config):
     FLASK_ENV = 'development'
     DEBUG = True
     # Use a separate DB for development
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'pomodoro_app', 'pomodoro-dev.db'))
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'DATABASE_URL',
+        'sqlite:///' + os.path.join(basedir, 'pomodoro_app', 'pomodoro-dev.db')
+    )
     # Less strict rate limits for development/testing
     RATELIMIT_DEFAULT = "500 per day;100 per hour;20 per minute"
 
@@ -48,10 +57,7 @@ class ProductionConfig(Config):
     """Production configuration."""
     FLASK_ENV = 'production'
     DEBUG = False
-    if config_name == 'production':
-        if app.config['SECRET_KEY'] == Config.SECRET_KEY:
-            raise RuntimeError("SECRET_KEY must be set to a secure value in production!")
-
+    # No runtime logic here—checks moved to create_app()
 
 
 class TestingConfig(Config):

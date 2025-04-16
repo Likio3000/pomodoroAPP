@@ -4,7 +4,6 @@
   <p>Welcome, {{ current_user.name }}! Here are your productivity stats:</p>
 
   {# Container to hold data attributes for JS timestamp formatting #}
-  {# This div is NO LONGER used for passing chat data #}
   <div id="dashboard-data"
        data-total-focus="{{ total_focus }}"
        data-total-break="{{ total_break }}"
@@ -17,41 +16,35 @@
     {# No visual content here #}
   </div>
 
-  {# Stats Columns (structure remains the same) #}
   <div class="stats-columns-container">
-    {# Column 1: Overall Stats #}
     <div class="stats-column">
       <h3 class="dashboard-section-title">Overall Stats</h3>
       <ul class="stats">
         <li><strong>Total Focused Time:</strong> {{ total_focus }} minutes</li>
         <li><strong>Total Break Time:</strong> {{ total_break }} minutes</li>
         <li><strong>Completed Pomodoro Sessions:</strong> {{ total_sessions }}</li>
-        <li><strong>Total Points Earned:</strong> {{ current_user.total_points | int }}</li> {# Display total points #}
+        <li><strong>Total Points Earned:</strong> {{ current_user.total_points | int }}</li>
       </ul>
-    </div> {# End stats-column (Overall) #}
+    </div>
 
-    {# Column 2: Today's Stats #}
     <div class="stats-column">
       <h3 class="dashboard-section-title">Today's Stats (UTC)</h3>
       <ul class="stats">
         <li><strong>Focused Time Today:</strong> {{ today_focus }} minutes</li>
         <li><strong>Sessions Today:</strong> {{ today_sessions }}</li>
       </ul>
-    </div> {# End stats-column (Today) #}
+    </div>
 
-    {# Column 3: Week's Stats #}
     <div class="stats-column">
       <h3 class="dashboard-section-title">This Week's Stats (UTC)</h3>
        <ul class="stats">
         <li><strong>Focused Time This Week:</strong> {{ week_focus }} minutes</li>
         <li><strong>Sessions This Week:</strong> {{ week_sessions }}</li>
       </ul>
-    </div> {# End stats-column (Week) #}
-  </div> {# End stats-columns-container #}
+    </div>
+  </div>
 
-
-  {# Past Sessions Section (structure remains the same) #}
-  <h3 class="dashboard-section-title">Past Sessions</h3> {# Applied consistent title style #}
+  <h3 class="dashboard-section-title">Past Sessions</h3>
   {% if sessions %}
     <div class="sessions-table-container">
       <table class="sessions-table">
@@ -66,7 +59,7 @@
               </td>
               <td>{{ sess.work_duration }}</td>
               <td>{{ sess.break_duration }}</td>
-              <td>{{ sess.points_earned if sess.points_earned is not none else '--' }}</td> {# Show points earned for that session #}
+              <td>{{ sess.points_earned if sess.points_earned is not none else '--' }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -76,25 +69,18 @@
     <p>No sessions recorded yet. <a href="{{ url_for('main.timer') }}">Start your first Pomodoro!</a></p>
   {% endif %}
 
-  {# --- Removed Embedded Chat Agent Section --- #}
-  {# The floating widget from agent_chat.js will be used instead #}
-
-  {# +++ Load Libraries for Floating Chat Widget +++ #}
+  {# Load libs for chat widget #}
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
-  {# +++ Load the Floating Agent Chat Widget +++ #}
   <script>
-    // Optional: Pass global config needed by agent_chat.js if necessary
-    // Example: Setting initial TTS toggle state based on server config
-    window.dashboardConfig = { // Rename or use a generic name like window.pageConfig
-        ttsGloballyEnabled: {{ config.get('TTS_ENABLED', true) | tojson }}
-        // Add other config data if agent_chat.js needs it
+    window.dashboardConfig = {
+      // Force TTS off by default; user can enable via toggle
+      ttsGloballyEnabled: false
     };
   </script>
   <script src="{{ url_for('static', filename='js/agent_chat.js') }}" defer></script>
 
-  {# +++ Load Dashboard Specific JS (for timestamp formatting) +++ #}
   <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
 
 {% endblock %}

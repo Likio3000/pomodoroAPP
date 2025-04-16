@@ -42,57 +42,63 @@
     <!-- Multiplier Explanation Table -->
     <div class="multiplier-rules-container">
         <h3>Multiplier Rules</h3>
-        <p>Earn bonuses for consistency and focus during <strong>Work</strong> phases. Base rate is {{ config.get('POINTS_PER_MINUTE', 10) }} points/minute for Work & Break.</p>
+        <p>Earn bonuses for consistency and focus during <strong>Work</strong> phases. Base rate is {{ config.get('POINTS_PER_MINUTE', 10) }} points/minute for Work &amp; Break.</p>
         <table class="multiplier-rules-table">
             <thead>
-                <tr><th>Condition</th><th>Bonus</th><th>Details</th></tr>
+                <tr>
+                  <th>Condition</th>
+                  <th>Bonus</th>
+                  <th>Details</th>
+                </tr>
             </thead>
             <tbody>
                 {% for rule in multiplier_rules %}
                     {% set is_active = rule.id in active_rule_ids %}
                     <tr class="{{ 'base-rate' if rule.id == 'base' else '' }} {{ 'active-multiplier-rule' if is_active else '' }}">
                         <td>{{ rule.condition }}</td>
-                        <td>{% if rule.bonus > 0 %}+{{ rule.bonus | round(1) }}x{% elif rule.id == 'base' %}1.0x Base{% else %}-{% endif %}</td>
+                        <td>
+                          {% if rule.bonus > 0 %}
+                            +{{ rule.bonus | round(1) }}x
+                          {% elif rule.id == 'base' %}
+                            1.0x Base
+                          {% else %}
+                            –
+                          {% endif %}
+                        </td>
                         <td>{{ rule.details }}</td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <p><em>Note: Bonuses stack additively.</em></p> {# Simplified note #}
+        <p><em>Note: Bonuses stack additively.</em></p>
     </div>
 
   </div> {# End of timer-component div #}
 
-  {# Inline script to pass dynamic data to the static JS files. #}
   <script>
     window.pomodoroConfig = {
       apiUrls: {
-        start: "{{ url_for('main.api_start_timer') }}",
+        start:    "{{ url_for('main.api_start_timer') }}",
         complete: "{{ url_for('main.api_complete_phase') }}",
         getState: "{{ url_for('main.api_get_timer_state') }}",
-        reset: "{{ url_for('main.api_reset_timer') }}",
-        resume: "{{ url_for('main.api_resume_timer') }}"
+        reset:    "{{ url_for('main.api_reset_timer') }}",
+        resume:   "{{ url_for('main.api_resume_timer') }}"
       },
       initialData: {
-        totalPoints: {{ total_points | int }},
+        totalPoints:      {{ total_points | int }},
         activeMultiplier: {{ active_multiplier | float }}
       },
-      // Pass global TTS setting for agent_chat.js initialization
-      ttsGloballyEnabled: {{ config.get('TTS_ENABLED', false) | tojson }}
+      // Force TTS off by default; user can tick the box to enable it.
+      ttsGloballyEnabled: false
     };
   </script>
 
-  {# Link external JS files for timer logic #}
   <script src="{{ url_for('static', filename='js/timer_logic.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/timer_api.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/timer.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/timer_api.js') }}"    defer></script>
+  <script src="{{ url_for('static', filename='js/timer.js') }}"        defer></script>
 
-  {# +++ Load Libraries for Floating Chat Widget +++ #}
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-
-  {# +++ Load the Floating Agent Chat Widget +++ #}
-  {# It will use window.pomodoroConfig if needed #}
-  <script src="{{ url_for('static', filename='js/agent_chat.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/agent_chat.js') }}"   defer></script>
 
 {% endblock %}
