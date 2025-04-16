@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from flask import request, jsonify, current_app, send_file, abort, url_for
 from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import func 
+from sqlalchemy import func
 
 try:
     from openai import OpenAI
@@ -199,6 +199,7 @@ def api_complete_phase():
     Completes a phase of the timer.
     Calculates and awards points based on the planned duration,
     updates user stats and streaks, and transitions the timer state.
+    Automatically starts the next work session after a break.
     """
     data = request.get_json()
     if not data or 'phase_completed' not in data:
@@ -211,6 +212,7 @@ def api_complete_phase():
     points_per_minute = current_app.config.get('POINTS_PER_MINUTE', 10)
 
     try:
+        # Use with_for_update() for locking during the read-modify-write cycle
         user = db.session.query(User).filter_by(id=user_id).with_for_update().first()
         server_state = db.session.query(ActiveTimerState).filter_by(user_id=user_id).with_for_update().first()
 
@@ -263,6 +265,7 @@ def api_complete_phase():
         points_earned_this_phase = 0
         next_phase_status = 'unknown'
         new_total_points = user.total_points # Start with current points
+        response_payload = {} # To hold extra data for specific responses
 
         if phase_completed == 'work':
             planned_work_duration = server_state.work_duration_minutes
@@ -316,30 +319,45 @@ def api_complete_phase():
                 f"API Complete: Timer state transitioned to BREAK for User {user_id}, ending at {break_end_time_utc.isoformat()}."
             )
             next_phase_status = 'break_started'
+            response_payload['end_time'] = break_end_time_utc.isoformat() # Send break end time
 
         elif phase_completed == 'break':
             planned_break_duration = server_state.break_duration_minutes
             current_app.logger.info(
                 f"API Complete: User {user_id} completed BREAK phase (duration: {planned_break_duration} min)."
             )
-            # Award points for break (no multiplier applied)
+            # Optional: Award points for break (e.g., half rate)
             if isinstance(points_per_minute, (int, float)) and points_per_minute >= 0:
-                 # Points for break can be adjusted or set to 0 if desired
-                 points_earned_this_phase = int(round(planned_break_duration * points_per_minute * 0.5)) # Example: 0.5x points for break
+                 points_earned_this_phase = int(round(planned_break_duration * points_per_minute * 0.5)) # Example: 0.5x points
             else:
-                current_app.logger.error(f"API Complete: Invalid POINTS_PER_MINUTE ({points_per_minute}). Using 0 points for break.")
                 points_earned_this_phase = 0
 
             new_total_points += points_earned_this_phase
             current_app.logger.info(
                  f"API Complete: User {user_id} earned {points_earned_this_phase} points for break. Total now: {new_total_points}"
             )
-            user.total_points = new_total_points # Update user's total points
+            user.total_points = new_total_points
 
-            # Session complete, delete the active timer state
-            db.session.delete(server_state)
-            current_app.logger.debug(f"API Complete: Deleted active timer state for User {user_id} after break.")
-            next_phase_status = 'session_complete'
+            # --- START: Automatic Work Start Logic ---
+            # Instead of deleting, update the state for the next work session
+            work_minutes = server_state.work_duration_minutes
+            # Recalculate multiplier based on streaks *before* the work session starts
+            next_multiplier = calculate_current_multiplier(user, work_minutes)
+            work_end_time_utc = now_utc + timedelta(minutes=work_minutes)
+
+            server_state.phase = 'work'
+            server_state.start_time = now_utc
+            server_state.end_time = work_end_time_utc
+            server_state.current_multiplier = next_multiplier # Set multiplier for the upcoming work phase
+
+            current_app.logger.debug(
+                f"API Complete: Break finished. Automatically transitioning to WORK for User {user_id}. "
+                f"New Mult: {next_multiplier:.2f}, Ends: {work_end_time_utc.isoformat()}."
+            )
+            next_phase_status = 'work_started' # New status for client
+            response_payload['end_time'] = work_end_time_utc.isoformat()
+            response_payload['active_multiplier'] = next_multiplier
+            # --- END: Automatic Work Start Logic ---
 
         else:
             # Should not happen if phase_completed is corrected based on server_state
@@ -350,12 +368,15 @@ def api_complete_phase():
             db.session.commit()
             return jsonify({'error': f'Invalid phase specified: {phase_completed}', 'total_points': user.total_points}), 400
 
-        # Commit all changes (user points, session log, active timer state update/delete)
+        # Commit all changes (user points, session log, active timer state update)
         db.session.commit()
         current_app.logger.info(
             f"API Complete: DB commit successful for User {user_id}. Status: {next_phase_status}, Total Points: {new_total_points}"
         )
-        return jsonify({'status': next_phase_status, 'total_points': new_total_points}), 200
+        # Merge base response with specific payload
+        final_response = {'status': next_phase_status, 'total_points': new_total_points}
+        final_response.update(response_payload)
+        return jsonify(final_response), 200
 
     except SQLAlchemyError as e:
         db.session.rollback()

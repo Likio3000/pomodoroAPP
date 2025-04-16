@@ -88,57 +88,111 @@ window.PomodoroAPI = (function() {
              });
              const data = await response.json();
 
+             // Always update total points if received
              if (data && typeof data.total_points === 'number') {
                   window.PomodoroLogic.setTotalPoints(data.total_points);
              }
 
              if (!response.ok) {
+                 // Throw error to be caught below, ensuring points are updated first if possible
                  throw new Error(data.error || response.statusText || `Server error ${response.status}`);
              }
 
              console.log(`Server acknowledged ${completedPhase} completion. Status: ${data.status}`, data);
-             window.PomodoroLogic.setServerEndTimeUTC(null);
+             window.PomodoroLogic.setServerEndTimeUTC(null); // Clear old end time initially
 
              if (data.status === 'break_started') {
                  window.PomodoroLogic.setPhase('break');
                  window.PomodoroLogic.setPrePausePhase(null);
-                 window.PomodoroLogic.setCurrentMultiplier(1.0);
-                 const breakDuration = window.PomodoroLogic.getBreakDuration();
-                 const now = new Date();
-                 const breakEndTimeUTC = new Date(now.getTime() + breakDuration * 60000).toISOString();
-                 window.PomodoroLogic.setServerEndTimeUTC(breakEndTimeUTC);
-                 window.PomodoroLogic.setRemainingSeconds(breakDuration * 60);
+                 window.PomodoroLogic.setCurrentMultiplier(1.0); // Breaks have 1x multiplier
+                 // Server sends the break end time
+                 if (data.end_time) {
+                    window.PomodoroLogic.setServerEndTimeUTC(data.end_time);
+                    // Calculate remaining seconds based on the received end time
+                    const endTimeMs = new Date(data.end_time).getTime();
+                    const nowMs = Date.now();
+                    const remainingS = Math.max(0, Math.floor((endTimeMs - nowMs) / 1000));
+                    window.PomodoroLogic.setRemainingSeconds(remainingS);
+                 } else {
+                    // Fallback if end_time is missing
+                    console.warn("Break started response missing end_time, using local duration.");
+                    const breakDuration = window.PomodoroLogic.getBreakDuration();
+                    window.PomodoroLogic.setRemainingSeconds(breakDuration * 60);
+                 }
+
                  if(elements.statusMessage) elements.statusMessage.textContent = "Work complete! Starting break.";
                  window.PomodoroLogic.updateUIDisplays();
-                 setTimeout(() => { window.PomodoroLogic.startCountdown(); }, 100); // Added timeout, startCountdown now async
+                 // Use setTimeout to ensure UI update happens before countdown potentially changes display again
+                 setTimeout(() => { window.PomodoroLogic.startCountdown(); }, 100);
+
+             // --- START: Handle Automatic Work Start ---
+             } else if (data.status === 'work_started') {
+                 window.PomodoroLogic.setPhase('work');
+                 window.PomodoroLogic.setPrePausePhase(null);
+
+                 // Update multiplier and end time from server response
+                 if (typeof data.active_multiplier === 'number') {
+                      window.PomodoroLogic.setCurrentMultiplier(data.active_multiplier);
+                 }
+                 if (data.end_time) {
+                      window.PomodoroLogic.setServerEndTimeUTC(data.end_time);
+                      // Calculate remaining seconds based on the received end time
+                      const endTimeMs = new Date(data.end_time).getTime();
+                      const nowMs = Date.now();
+                      const remainingS = Math.max(0, Math.floor((endTimeMs - nowMs) / 1000));
+                      window.PomodoroLogic.setRemainingSeconds(remainingS);
+                 } else {
+                      // Fallback if end_time is missing
+                      console.warn("Work started response missing end_time, using local duration.");
+                      const workDuration = window.PomodoroLogic.getWorkDuration();
+                      window.PomodoroLogic.setRemainingSeconds(workDuration * 60);
+                 }
+
+                 if(elements.statusMessage) elements.statusMessage.textContent = "Break complete! Starting next work session.";
+                 window.PomodoroLogic.updateUIDisplays();
+                 // Use setTimeout to ensure UI update happens before countdown potentially changes display again
+                 setTimeout(() => { window.PomodoroLogic.startCountdown(); }, 100);
+             // --- END: Handle Automatic Work Start ---
 
              } else if (data.status === 'session_complete' || data.status === 'acknowledged_no_state') {
+                 // This case might become less common if breaks always lead to work_started
                  if (data.status === 'acknowledged_no_state') {
                     console.warn("Server had no state for completion signal. Resetting client.");
                     if(elements.statusMessage) elements.statusMessage.textContent = "Session desync? Timer reset.";
                  } else {
-                    if(elements.statusMessage) elements.statusMessage.textContent = "Break complete! Ready for next session.";
+                    // This might happen if the flow is somehow interrupted?
+                    console.warn("Received 'session_complete' status unexpectedly after break. Resetting.");
+                    if(elements.statusMessage) elements.statusMessage.textContent = "Session ended. Ready for next session.";
                  }
-                 setTimeout(() => window.PomodoroLogic.resetTimer(false), 100);
+                 // Reset timer immediately in these cases
+                  window.PomodoroLogic.resetTimer(false);
 
              } else {
+                 // Unexpected status from server
                  throw new Error(`Unexpected status from complete API: ${data.status}`);
              }
 
+             // No need to call setControlsDisabled(false) here as startCountdown handles UI state
+
          } catch (error) {
+              // Error handling remains the same
               console.error(`Error sending complete signal (${completedPhase}):`, error);
               if(elements.statusMessage) {
                 elements.statusMessage.textContent = `Error: ${error.message || 'Could not complete phase.'}`;
                 elements.statusMessage.classList.add('status-alert');
               }
+              // Attempt to revert to a paused state to allow user intervention
               if (window.PomodoroLogic) {
-                  window.PomodoroLogic.setPhase('paused');
-                  window.PomodoroLogic.setPrePausePhase(completedPhase);
+                  // Don't reset phase if it was already updated by a successful part of the try block
+                  if (window.PomodoroLogic.getPhase() !== 'work' && window.PomodoroLogic.getPhase() !== 'break') {
+                     window.PomodoroLogic.setPhase('paused');
+                     window.PomodoroLogic.setPrePausePhase(completedPhase); // Keep track of what failed
+                  }
                   window.PomodoroLogic.updateUIDisplays();
-                  window.PomodoroLogic.updateButtonStates(false);
+                  window.PomodoroLogic.updateButtonStates(false); // Show Resume/Reset
                   window.PomodoroLogic.enableInputs(false);
               }
-              setControlsDisabled(false);
+              setControlsDisabled(false); // Explicitly re-enable controls on error
          }
     }
 
