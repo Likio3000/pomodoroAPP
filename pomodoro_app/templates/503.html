@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Service Unavailable</h1>
+  <p>Sorry, the service required to fulfill your request is temporarily unavailable.</p>
+  {% if error %}
+    <p><strong>Details:</strong> {{ error }}</p> {# Optional: Pass details via abort #}
+  {% endif %}
+  <p>This could be due to maintenance, high load, or an issue with an external service (like the AI assistant). Please try again later.</p>
+  <p><a href="{{ url_for('main.index') }}">Return to Home</a></p>
+{% endblock %}

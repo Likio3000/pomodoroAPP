@@ -113,6 +113,20 @@ def create_app(config_name=None): # config_name e.g., 'development', 'production
             app.logger.error(f"Error during DB session rollback on 500 error: {rollback_err}", exc_info=True)
         return render_template("500.html"), 500
 
+    @app.errorhandler(501)
+    def not_implemented_error(e):
+        app.logger.error(f"Not Implemented (501): Feature requested at {request.path}. Description: {e.description}", exc_info=True)
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify(error=f"Not Implemented: {e.description or 'Feature not available'}"), 501
+        return render_template("501.html", error=e.description), 501
+
+    @app.errorhandler(503)
+    def service_unavailable_error(e):
+        app.logger.error(f"Service Unavailable (503): Error accessing {request.path}. Description: {e.description}", exc_info=True)
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify(error=f"Service Unavailable: {e.description or 'The service is temporarily unavailable'}"), 503
+        return render_template("503.html", error=e.description), 503
+
     # --- Database Initialization for "Delete & Recreate" Workflow ---
  #   # Use db.create_all() ONLY for initial setup or dev reset workflow
  #   if app.config.get('DEBUG'): # Check if in development/debug mode

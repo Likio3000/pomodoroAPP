@@ -1,0 +1,12 @@
+<!-- pomodoro_app/templates/501.html -->
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Not Implemented</h1>
+  <p>Sorry, the feature or functionality you requested is not currently implemented or enabled on the server.</p>
+  {% if error %}
+    <p><strong>Details:</strong> {{ error }}</p> {# Optional: Pass details via abort #}
+  {% endif %}
+  <p>This might be a feature planned for the future or one that requires specific configuration.</p>
+  <p><a href="{{ url_for('main.index') }}">Return to Home</a></p>
+{% endblock %}

@@ -509,11 +509,11 @@ def api_chat():
 
     if not current_app.config.get('FEATURE_CHAT_ENABLED', False):
         current_app.logger.warning(f"API Chat: Chat feature disabled for User {current_user.id}.")
-        return jsonify({'error': 'Chat feature is not configured or available.'}), 501 # Service unavailable
+        abort(501, description='Chat feature is not configured or available.') # Pass message via description
 
     if not openai_client:
         current_app.logger.error(f"API Chat: OpenAI client unavailable for User {current_user.id}.")
-        return jsonify({'error': 'Chat service client is not available.'}), 503 # Service unavailable
+        abort(503, description='Chat service client is not available.') # Pass message via description
 
     data = request.get_json()
     # --- Check for tts_enabled flag from request ---
@@ -640,8 +640,8 @@ If the question is unrelated to productivity, politely decline.
 
 
 @main.route('/api/agent_audio/<path:filename>')
-@login_required # Ensure only logged-in users can access generated audio
-@limiter.limit("30 per minute") # Limit audio fetches
+@login_required
+@limiter.limit("3 per minute") # Limit audio fetches
 def serve_agent_audio(filename):
     """Serves TTS audio files for agent chat, ensuring safe file access."""
     # Basic security checks: prevent path traversal
