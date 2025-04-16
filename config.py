@@ -31,7 +31,7 @@ class Config:
     FEATURE_CHAT_ENABLED = bool(OPENAI_API_KEY)  # Automatically enable chat if key exists
 
     # --- NEW: TTS Toggle Flag ---
-    TTS_ENABLED = os.environ.get('TTS_ENABLED', 'true').lower() == 'false'
+    TTS_ENABLED = os.environ.get('TTS_ENABLED', 'true').lower() in ('1','true','yes')
 
 
 class DevelopmentConfig(Config):
@@ -48,7 +48,10 @@ class ProductionConfig(Config):
     """Production configuration."""
     FLASK_ENV = 'production'
     DEBUG = False
-    # Ensure DATABASE_URL is set in production environment
+    if config_name == 'production':
+        if app.config['SECRET_KEY'] == Config.SECRET_KEY:
+            raise RuntimeError("SECRET_KEY must be set to a secure value in production!")
+
 
 
 class TestingConfig(Config):
