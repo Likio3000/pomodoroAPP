@@ -356,7 +356,7 @@ h1, h2, h3 {
 .status-message {
   font-size: 1.1em;
   margin: 0.5em 0 1.5em 0; /* Adjusted margin */
-  color: #dc3545; /* Bootstrap danger red for status/alerts */
+  color: #1b1717d8; /* Bootstrap danger red for status/alerts */
   text-align: center;
   min-height: 1.4em; /* Prevent layout shifts */
   font-weight: 500;
