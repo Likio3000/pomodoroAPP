@@ -8,6 +8,17 @@
 </head>
 <body>
   <nav class="navbar">
+    {% if not chat_enabled %}
+    <div
+      class="status-message status-alert"
+      role="alert"
+      style="text-align:center; margin:1em auto; max-width:800px;"
+    >
+      ⚠️ AI Assistant is <strong>disabled</strong> (no OPENAI_API_KEY).<br>
+      To enable chat, set your key:<br>
+      <code>export OPENAI_API_KEY="your_key_here"</code>
+    </div>
+  {% endif %}
     <div class="container">
       <span class="brand">Pomodoro Timer</span>
       <div class="nav-links">

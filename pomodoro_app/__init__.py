@@ -30,6 +30,14 @@ def create_app(config_name=None):
         print(f" ! WARNING: Invalid FLASK_CONFIG '{config_name}'. Falling back to development.")
         app.config.from_object(config_by_name['development'])
 
+    # --- Edge case: warn if OPENAI_API_KEY is missing ---
+    if not app.config.get('OPENAI_API_KEY'):
+        app.logger.warning(
+            "⚠️  OPENAI_API_KEY is not set. "
+            "AI Assistant (chat) feature will be disabled. "
+            "To enable it, export your key:\n"
+            "    export OPENAI_API_KEY='your_key_here'"
+        )
     # --- Production sanity checks ---
     if config_name == 'production':
         if app.config['SECRET_KEY'] == Config.SECRET_KEY:
@@ -103,6 +111,15 @@ def create_app(config_name=None):
         if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
             return jsonify(error=f"Service Unavailable: {e.description or 'The service is temporarily unavailable'}"), 503
         return render_template("503.html", error=e.description), 503
+
+    # ——— Inject chat feature flag into all templates ———
+    @app.context_processor
+    def inject_chat_status():
+        return {
+            # FEATURE_CHAT_ENABLED is True iff OPENAI_API_KEY was set
+            'chat_enabled': app.config.get('FEATURE_CHAT_ENABLED', False)
+        }
+
 
 
     return app
