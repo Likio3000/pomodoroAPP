@@ -14,29 +14,24 @@ if (chatCsrfMetaTag) {
 
 // --- AGENT DEFINITIONS ---
 const AGENTS = {
-    // ... (rest of AGENTS definition)
     "default": { name: "Assistant", voice: "alloy" },
     "motivator": { name: "Motivator", voice: "nova" },
     "coach": { name: "Coach", voice: "shimmer" }
 };
 
 // --- STORAGE KEYS ---
-// ... (rest of storage keys)
 const CHAT_HISTORY_KEY = 'pomodoroAgentChatHistory_v1'; // Versioned chat history key
 const AGENT_SELECTION_KEY = 'pomodoroAgentSelected_v1'; // Versioned key for selected agent
-
-// --- Read chat-enabled flag injected from server-side template ---
-const isChatOn = (window.chatEnabled === 'true' || window.chatEnabled === true);
 
 let chatHistory = []; // In-memory representation of the history
 
 // --- UI Construction ---
 function createAgentChatBox() {
-    // ... (keep existing UI creation)
     if (document.getElementById('agent-chatbox')) return;
 
     const chatBox = document.createElement('div');
     chatBox.id = 'agent-chatbox';
+    // Simplified HTML - no inline notice needed here anymore
     chatBox.innerHTML = `
         <div class="agent-chat-header">AI Assistant <span id="agent-status" aria-live="polite"></span></div>
         <div id="agent-chat-log" class="agent-chat-log" aria-live="polite" aria-atomic="false"></div>
@@ -59,29 +54,11 @@ function createAgentChatBox() {
         <audio id="agent-chat-audio" style="display:none;"></audio>
     `;
 
-    // If chat feature is disabled, gray out and disable controls
-    if (!isChatOn) {
-        chatBox.classList.add('disabled');
-        chatBox.style.opacity = '0.6';
-        const controls = chatBox.querySelectorAll('input, button, select');
-        controls.forEach(el => el.disabled = true);
-
-        // Inline notice
-        const notice = document.createElement('div');
-        notice.textContent = 'Chat disabled: no OPENAI_API_KEY configured';
-        notice.style.background = '#fbeaea';
-        notice.style.color = '#a94442';
-        notice.style.padding = '0.5em';
-        notice.style.textAlign = 'center';
-        chatBox.insertBefore(notice, chatBox.firstChild);
-    }
-
     document.body.appendChild(chatBox);
-    console.log("Agent chatbox created.");
+    console.log("Agent chatbox created (UI always enabled).");
 }
 
 // --- Chat Logic & History Management ---
-// ... (keep existing renderMessageWithoutSaving, appendAgentMessage, setAgentStatus)
 function renderMessageWithoutSaving(text, sender = 'ai') {
     const log = document.getElementById('agent-chat-log');
     if (!log) return;
@@ -132,8 +109,8 @@ function setAgentStatus(status) {
 
 
 async function sendAgentMessage() {
-    if (!isChatOn) return;  // Prevent sending if disabled
-    if (!chatCsrfToken) { // <--- Check for CSRF token
+    // Still check for CSRF token
+    if (!chatCsrfToken) {
         console.error("Agent Chat: Cannot send message, CSRF token missing.");
         appendAgentMessage("Error: Missing security token. Please refresh the page.", 'ai');
         setAgentStatus('Error');
@@ -157,33 +134,36 @@ async function sendAgentMessage() {
     sendBtn.disabled = true;
     setAgentStatus('...');
 
-    const dashboardData = window.dashboardConfig?.initialData || {}; // Still sending basic data
+    const dashboardData = window.dashboardConfig?.initialData || {};
 
     try {
-        // --- Create headers including CSRF token ---
         const headers = {
             'Content-Type':'application/json',
-            'Accept': 'application/json', // Good practice to accept JSON back
-            'X-CSRFToken': chatCsrfToken   // Include the token
+            'Accept': 'application/json',
+            'X-CSRFToken': chatCsrfToken
         };
 
         const response = await fetch('/api/chat', {
             method: 'POST',
-            headers: headers, // <--- Use the headers object
+            headers: headers,
             body: JSON.stringify({
                 prompt: message,
-                dashboard_data: dashboardData, // Pass minimal data as server re-fetches
+                dashboard_data: dashboardData,
                 agent_type: agentType,
                 tts_enabled: isTtsEnabledByUser
             })
         });
         const data = await response.json();
 
+        // Enhanced Error Handling for API Failures
         if (!response.ok) {
-             if (response.status === 400 && data.error && data.error.toLowerCase().includes('csrf')) {
-                 throw new Error(data.error + " Please refresh the page.");
-             }
-             throw new Error(data.error || `Error ${response.status}`);
+            let errorMsg = data.error || `Error ${response.status}`;
+            if (response.status === 501 || response.status === 503) {
+                errorMsg = data.error || "Chat feature is currently unavailable.";
+            } else if (response.status === 400 && data.error && data.error.toLowerCase().includes('csrf')) {
+                errorMsg = data.error + " Please refresh the page.";
+            }
+            throw new Error(errorMsg);
         }
 
         if (data.response) {
@@ -195,7 +175,7 @@ async function sendAgentMessage() {
             appendAgentMessage('Unexpected empty response.', 'ai');
         }
     } catch (err) {
-        console.error("Agent Chat Send Error:", err); // Log error
+        console.error("Agent Chat Send Error:", err);
         appendAgentMessage(`Error: ${err.message}`, 'ai');
     } finally {
         input.disabled = false;
@@ -205,13 +185,12 @@ async function sendAgentMessage() {
     }
 }
 
-// --- playAgentAudio remains the same ---
+// --- playAgentAudio ---
 function playAgentAudio(audioUrl) {
-    // ... (keep existing function)
-    if (!isChatOn) return;
-
     const ttsToggle = document.getElementById('tts-toggle');
-    if (!ttsToggle.checked) return;
+    // Only play if TTS toggle is checked
+    if (!ttsToggle || !ttsToggle.checked) return;
+
     const audio = document.getElementById('agent-chat-audio');
     if (!audio) return;
     if (!audio.paused) { audio.pause(); audio.currentTime = 0; }
@@ -226,9 +205,8 @@ function playAgentAudio(audioUrl) {
     audio.onerror = () => setAgentStatus('Audio error');
 }
 
-// --- setupAgentChatEvents remains the same ---
+// --- setupAgentChatEvents ---
 function setupAgentChatEvents() {
-    // ... (keep existing function)
     const sendBtn = document.getElementById('agent-chat-send');
     const inputField = document.getElementById('agent-chat-input');
     const agentTypeSelect = document.getElementById('agent-type-select');
@@ -245,9 +223,8 @@ function setupAgentChatEvents() {
     }
 }
 
-// --- Timer Event Hooks (remains the same) ---
+// --- Timer Event Hooks ---
 window.triggerAgentEvent = function(eventType) {
-    // ... (keep existing function)
     const agentInput = document.getElementById('agent-chat-input');
     if (!agentInput) return;
     const prompts = {
@@ -261,8 +238,7 @@ window.triggerAgentEvent = function(eventType) {
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    // ... (keep existing initialization logic)
-    createAgentChatBox();
+    createAgentChatBox(); // Create the UI regardless of server config
 
     // Load chat history
     try {
@@ -270,7 +246,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (stored) {
             chatHistory = JSON.parse(stored);
             chatHistory.forEach(msg => renderMessageWithoutSaving(msg.text, msg.sender));
-            document.getElementById('agent-chat-log').scrollTop = document.getElementById('agent-chat-log').scrollHeight;
+            // Scroll to bottom after rendering history
+            const log = document.getElementById('agent-chat-log');
+            if(log) log.scrollTop = log.scrollHeight;
         } else {
             appendAgentMessage("Hello! Ask me about your Pomodoro stats or for productivity tips.", 'ai');
         }
@@ -278,6 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error loading chat history:', e);
         sessionStorage.removeItem(CHAT_HISTORY_KEY);
         chatHistory = [];
+        appendAgentMessage("Error loading previous chat messages.", 'ai'); // Inform user
     }
 
     // Restore agent selection
@@ -289,20 +268,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupAgentChatEvents();
 
-    // Set initial TTS toggle state
+    // --- MODIFIED: Set initial TTS toggle state ---
     const ttsToggle = document.getElementById('tts-toggle');
     if (ttsToggle) {
-        let defaultTts = true;
-        if (window.pomodoroConfig?.ttsGloballyEnabled === false || window.dashboardConfig?.ttsGloballyEnabled === false) {
-            defaultTts = false;
-        }
-        ttsToggle.checked = defaultTts;
+        // Always default the checkbox to unchecked on page load.
+        ttsToggle.checked = false;
+        console.log("Agent Chat: TTS toggle default set to OFF (unchecked). User must opt-in.");
     }
+    // --- END MODIFICATION ---
 
-    // Check CSRF token presence again during init
-    if (!chatCsrfToken && isChatOn) {
+    // Check CSRF token presence during init (still important)
+    if (!chatCsrfToken) {
         console.error("Agent Chat Init Error: CSRF token missing!");
-        appendAgentMessage("CRITICAL ERROR: Security token missing. Please refresh.", 'ai');
+        appendAgentMessage("CRITICAL ERROR: Security token missing. Chat will not work. Please refresh.", 'ai');
         // Disable input/send if token is missing
         const inputField = document.getElementById('agent-chat-input');
         const sendBtn = document.getElementById('agent-chat-send');
@@ -310,14 +288,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if(sendBtn) sendBtn.disabled = true;
     }
 
-
-    console.log("Agent chat initialization complete.");
+    console.log("Agent chat initialization complete (UI always enabled).");
 });
 
 
 // --- Minimal styles ---
-// ... (keep existing styles block)
-// Added visually-hidden class for accessibility labels
 if (!document.getElementById('agent-chat-styles')) {
     const style = document.createElement('style');
     style.id = 'agent-chat-styles';
