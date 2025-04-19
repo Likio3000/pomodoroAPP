@@ -2,15 +2,26 @@
 // Handles chat UI, agent selection, audio playback, and chat history persistence
 // for the Pomodoro AI assistant using sessionStorage.
 
+// --- CSRF Token ---
+let chatCsrfToken = null;
+const chatCsrfMetaTag = document.querySelector('meta[name=csrf-token]');
+if (chatCsrfMetaTag) {
+    chatCsrfToken = chatCsrfMetaTag.content;
+    console.log("Agent Chat: CSRF token found.");
+} else {
+    console.error("Agent Chat: CSRF meta tag not found! Chat API calls will fail.");
+}
 
 // --- AGENT DEFINITIONS ---
 const AGENTS = {
+    // ... (rest of AGENTS definition)
     "default": { name: "Assistant", voice: "alloy" },
     "motivator": { name: "Motivator", voice: "nova" },
     "coach": { name: "Coach", voice: "shimmer" }
 };
 
 // --- STORAGE KEYS ---
+// ... (rest of storage keys)
 const CHAT_HISTORY_KEY = 'pomodoroAgentChatHistory_v1'; // Versioned chat history key
 const AGENT_SELECTION_KEY = 'pomodoroAgentSelected_v1'; // Versioned key for selected agent
 
@@ -21,6 +32,7 @@ let chatHistory = []; // In-memory representation of the history
 
 // --- UI Construction ---
 function createAgentChatBox() {
+    // ... (keep existing UI creation)
     if (document.getElementById('agent-chatbox')) return;
 
     const chatBox = document.createElement('div');
@@ -69,6 +81,7 @@ function createAgentChatBox() {
 }
 
 // --- Chat Logic & History Management ---
+// ... (keep existing renderMessageWithoutSaving, appendAgentMessage, setAgentStatus)
 function renderMessageWithoutSaving(text, sender = 'ai') {
     const log = document.getElementById('agent-chat-log');
     if (!log) return;
@@ -117,8 +130,15 @@ function setAgentStatus(status) {
     if (statusEl) statusEl.textContent = status ? `(${status})` : '';
 }
 
+
 async function sendAgentMessage() {
     if (!isChatOn) return;  // Prevent sending if disabled
+    if (!chatCsrfToken) { // <--- Check for CSRF token
+        console.error("Agent Chat: Cannot send message, CSRF token missing.");
+        appendAgentMessage("Error: Missing security token. Please refresh the page.", 'ai');
+        setAgentStatus('Error');
+        return;
+    }
 
     const input = document.getElementById('agent-chat-input');
     const agentTypeSelect = document.getElementById('agent-type-select');
@@ -137,16 +157,35 @@ async function sendAgentMessage() {
     sendBtn.disabled = true;
     setAgentStatus('...');
 
-    const dashboardData = window.dashboardConfig?.initialData || {};
+    const dashboardData = window.dashboardConfig?.initialData || {}; // Still sending basic data
 
     try {
+        // --- Create headers including CSRF token ---
+        const headers = {
+            'Content-Type':'application/json',
+            'Accept': 'application/json', // Good practice to accept JSON back
+            'X-CSRFToken': chatCsrfToken   // Include the token
+        };
+
         const response = await fetch('/api/chat', {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ prompt: message, dashboard_data: dashboardData, agent_type: agentType, tts_enabled: isTtsEnabledByUser })
+            headers: headers, // <--- Use the headers object
+            body: JSON.stringify({
+                prompt: message,
+                dashboard_data: dashboardData, // Pass minimal data as server re-fetches
+                agent_type: agentType,
+                tts_enabled: isTtsEnabledByUser
+            })
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || `Error ${response.status}`);
+
+        if (!response.ok) {
+             if (response.status === 400 && data.error && data.error.toLowerCase().includes('csrf')) {
+                 throw new Error(data.error + " Please refresh the page.");
+             }
+             throw new Error(data.error || `Error ${response.status}`);
+        }
+
         if (data.response) {
             appendAgentMessage(data.response, 'ai');
             if (data.audio_url) playAgentAudio(data.audio_url);
@@ -156,7 +195,7 @@ async function sendAgentMessage() {
             appendAgentMessage('Unexpected empty response.', 'ai');
         }
     } catch (err) {
-        console.error(err);
+        console.error("Agent Chat Send Error:", err); // Log error
         appendAgentMessage(`Error: ${err.message}`, 'ai');
     } finally {
         input.disabled = false;
@@ -166,7 +205,9 @@ async function sendAgentMessage() {
     }
 }
 
+// --- playAgentAudio remains the same ---
 function playAgentAudio(audioUrl) {
+    // ... (keep existing function)
     if (!isChatOn) return;
 
     const ttsToggle = document.getElementById('tts-toggle');
@@ -185,7 +226,9 @@ function playAgentAudio(audioUrl) {
     audio.onerror = () => setAgentStatus('Audio error');
 }
 
+// --- setupAgentChatEvents remains the same ---
 function setupAgentChatEvents() {
+    // ... (keep existing function)
     const sendBtn = document.getElementById('agent-chat-send');
     const inputField = document.getElementById('agent-chat-input');
     const agentTypeSelect = document.getElementById('agent-type-select');
@@ -202,8 +245,9 @@ function setupAgentChatEvents() {
     }
 }
 
-// --- Timer Event Hooks ---
+// --- Timer Event Hooks (remains the same) ---
 window.triggerAgentEvent = function(eventType) {
+    // ... (keep existing function)
     const agentInput = document.getElementById('agent-chat-input');
     if (!agentInput) return;
     const prompts = {
@@ -217,6 +261,7 @@ window.triggerAgentEvent = function(eventType) {
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
+    // ... (keep existing initialization logic)
     createAgentChatBox();
 
     // Load chat history
@@ -254,12 +299,24 @@ document.addEventListener('DOMContentLoaded', () => {
         ttsToggle.checked = defaultTts;
     }
 
+    // Check CSRF token presence again during init
+    if (!chatCsrfToken && isChatOn) {
+        console.error("Agent Chat Init Error: CSRF token missing!");
+        appendAgentMessage("CRITICAL ERROR: Security token missing. Please refresh.", 'ai');
+        // Disable input/send if token is missing
+        const inputField = document.getElementById('agent-chat-input');
+        const sendBtn = document.getElementById('agent-chat-send');
+        if(inputField) inputField.disabled = true;
+        if(sendBtn) sendBtn.disabled = true;
+    }
+
+
     console.log("Agent chat initialization complete.");
 });
 
 
-
-// --- Minimal styles (ensure these are loaded, e.g., via base CSS or here) ---
+// --- Minimal styles ---
+// ... (keep existing styles block)
 // Added visually-hidden class for accessibility labels
 if (!document.getElementById('agent-chat-styles')) {
     const style = document.createElement('style');
@@ -332,13 +389,10 @@ if (!document.getElementById('agent-chat-styles')) {
         #agent-chat-send { padding: 0 10px; }
     }
     `;
-    // Add styles safely to head
     try {
         document.head.appendChild(style);
-    } catch (e) { // Handle environments where document.head might not be standard (less common in browsers)
+    } catch (e) {
         console.error("Could not append chat styles to document head:", e);
-        try { document.getElementsByTagName('head')[0].appendChild(style); } catch (e2) {} // Fallback
+        try { document.getElementsByTagName('head')[0].appendChild(style); } catch (e2) {}
     }
-} else {
-    // console.log("Agent chat styles already added."); // Optional: Can be noisy
 }

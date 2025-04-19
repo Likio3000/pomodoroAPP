@@ -4,10 +4,11 @@ import logging
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect # <--- Import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from config import config_by_name, Config # Keep Config import for reference if needed, but specific checks removed
+from config import config_by_name, Config
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -15,6 +16,7 @@ login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message_category = 'info'
 limiter = Limiter(key_func=get_remote_address)
+csrf = CSRFProtect() # <--- Instantiate CSRFProtect
 
 def create_app(config_name=None):
     if config_name is None:
@@ -25,26 +27,20 @@ def create_app(config_name=None):
     # --- Load configuration class ---
     selected_config = None
     try:
-        # Instantiate the config class - THIS is where ProductionConfig.__init__ runs its checks
         selected_config = config_by_name[config_name]()
         app.config.from_object(selected_config)
         print(f" * Loading configuration: {config_name}")
     except KeyError:
         print(f" ! WARNING: Invalid FLASK_CONFIG '{config_name}'. Falling back to development.")
-        # Instantiate development config if specified one fails
         selected_config = config_by_name['development']()
         app.config.from_object(selected_config)
-        config_name = 'development' # Update config_name to reflect the actual loaded config
+        config_name = 'development'
     except RuntimeError as e:
-        # Catch the RuntimeError raised by _assert in ProductionConfig.__init__
         print(f"!!! FATAL CONFIGURATION ERROR: {e}")
-        # Optionally log more details here
-        # Exit the application immediately as it cannot run without required config
         import sys
         sys.exit(f"Configuration Error: {e}")
 
     # --- Edge case: warn if OPENAI_API_KEY is missing ---
-    # This check remains relevant as OPENAI_API_KEY is optional
     if not app.config.get('OPENAI_API_KEY'):
         app.logger.warning(
             "⚠️  OPENAI_API_KEY is not set. "
@@ -53,8 +49,7 @@ def create_app(config_name=None):
             "    export OPENAI_API_KEY='your_key_here'"
         )
 
-
-    # Load instance config if it exists (allows overriding settings locally)
+    # Load instance config if it exists
     app.config.from_pyfile('config.py', silent=True)
 
     # --- Logging Setup ---
@@ -69,17 +64,23 @@ def create_app(config_name=None):
     db.init_app(app)
     login_manager.init_app(app)
     limiter.init_app(app)
+    csrf.init_app(app) # <--- Initialize CSRFProtect with the app
 
     # Disable rate limiting if testing
     if app.config.get('TESTING', False) and not app.config.get('RATELIMIT_ENABLED', True):
         limiter.enabled = False
         app.logger.info("Rate limiting disabled for testing.")
 
+    # --- CSRF Handling for Testing ---
+    # WTForms CSRF is disabled via TestingConfig, but CSRFProtect might still run.
+    # This ensures it's fully disabled if WTF_CSRF_ENABLED is False in config.
+    if not app.config.get('WTF_CSRF_ENABLED', True):
+         csrf.exempt_methods = [] # Disable CSRF checks entirely if configured
+
     # User loader
     from pomodoro_app.models import User
     @login_manager.user_loader
     def load_user(user_id):
-        # Use db.session.get for primary key lookups (more efficient)
         return db.session.get(User, int(user_id))
 
     # Register blueprints
@@ -96,11 +97,24 @@ def create_app(config_name=None):
             return jsonify(error=f"Rate limit exceeded: {e.description}"), 429
         return render_template("429.html", error=e.description), 429
 
+    # Add CSRF Error Handler (Optional but Recommended)
+    from flask_wtf.csrf import CSRFError
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        app.logger.warning(f"CSRF validation failed: {e.description} for {request.remote_addr} accessing {request.path}")
+        # Provide a JSON response if the request likely came from JS
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify(error=f"CSRF Error: {e.description}. Please refresh the page and try again."), 400
+        # Otherwise, render a generic error page or flash a message
+        # flash('Your session expired or the request was invalid. Please try again.', 'error')
+        # return redirect(request.referrer or url_for('main.index')) # Or a dedicated error page
+        return render_template('400_csrf.html', error=e.description), 400
+
+
     @app.errorhandler(500)
     def internal_server_error(e):
         app.logger.error(f"Internal Server Error: {e}", exc_info=True)
         try:
-            # Rollback potentially broken DB session
             db.session.rollback()
             app.logger.info("Database session rolled back due to 500 error.")
         except Exception as rollback_err:
@@ -121,10 +135,9 @@ def create_app(config_name=None):
             return jsonify(error=f"Service Unavailable: {e.description or 'The service is temporarily unavailable'}"), 503
         return render_template("503.html", error=e.description), 503
 
-    # --- Inject chat feature flag into all templates ---
+    # ——— Inject chat feature flag into all templates ———
     @app.context_processor
     def inject_chat_status():
-        # This uses the already loaded app.config
         return {
             'chat_enabled': app.config.get('FEATURE_CHAT_ENABLED', False)
         }
