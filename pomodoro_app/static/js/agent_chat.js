@@ -1,6 +1,7 @@
-// agent_chat.js
+// pomodoro_app/static/js/agent_chat.js
 // Handles chat UI, agent selection, audio playback, and chat history persistence
 // for the Pomodoro AI assistant using sessionStorage.
+
 
 // --- AGENT DEFINITIONS ---
 const AGENTS = {
@@ -12,6 +13,9 @@ const AGENTS = {
 // --- STORAGE KEYS ---
 const CHAT_HISTORY_KEY = 'pomodoroAgentChatHistory_v1'; // Versioned chat history key
 const AGENT_SELECTION_KEY = 'pomodoroAgentSelected_v1'; // Versioned key for selected agent
+
+// --- Read chat-enabled flag injected from server-side template ---
+const isChatOn = (window.chatEnabled === 'true' || window.chatEnabled === true);
 
 let chatHistory = []; // In-memory representation of the history
 
@@ -42,6 +46,24 @@ function createAgentChatBox() {
         </div>
         <audio id="agent-chat-audio" style="display:none;"></audio>
     `;
+
+    // If chat feature is disabled, gray out and disable controls
+    if (!isChatOn) {
+        chatBox.classList.add('disabled');
+        chatBox.style.opacity = '0.6';
+        const controls = chatBox.querySelectorAll('input, button, select');
+        controls.forEach(el => el.disabled = true);
+
+        // Inline notice
+        const notice = document.createElement('div');
+        notice.textContent = 'Chat disabled: no OPENAI_API_KEY configured';
+        notice.style.background = '#fbeaea';
+        notice.style.color = '#a94442';
+        notice.style.padding = '0.5em';
+        notice.style.textAlign = 'center';
+        chatBox.insertBefore(notice, chatBox.firstChild);
+    }
+
     document.body.appendChild(chatBox);
     console.log("Agent chatbox created.");
 }
@@ -96,6 +118,8 @@ function setAgentStatus(status) {
 }
 
 async function sendAgentMessage() {
+    if (!isChatOn) return;  // Prevent sending if disabled
+
     const input = document.getElementById('agent-chat-input');
     const agentTypeSelect = document.getElementById('agent-type-select');
     const ttsToggle = document.getElementById('tts-toggle');
@@ -117,7 +141,8 @@ async function sendAgentMessage() {
 
     try {
         const response = await fetch('/api/chat', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ prompt: message, dashboard_data: dashboardData, agent_type: agentType, tts_enabled: isTtsEnabledByUser })
         });
         const data = await response.json();
@@ -142,6 +167,8 @@ async function sendAgentMessage() {
 }
 
 function playAgentAudio(audioUrl) {
+    if (!isChatOn) return;
+
     const ttsToggle = document.getElementById('tts-toggle');
     if (!ttsToggle.checked) return;
     const audio = document.getElementById('agent-chat-audio');
@@ -168,7 +195,6 @@ function setupAgentChatEvents() {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAgentMessage(); }
     });
 
-    // Persist agent selection to sessionStorage
     if (agentTypeSelect) {
         agentTypeSelect.addEventListener('change', () => {
             sessionStorage.setItem(AGENT_SELECTION_KEY, agentTypeSelect.value);

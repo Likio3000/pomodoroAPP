@@ -5,26 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pomodoro App</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <!-- expose chatEnabled flag to JS -->
+  <script>
+    window.chatEnabled = {{ 'true' if chat_enabled else 'false' }};
+  </script>
 </head>
 <body>
   <nav class="navbar">
-    {% if not chat_enabled %}
-    <div
-      class="status-message status-alert"
-      role="alert"
-      style="text-align:center; margin:1em auto; max-width:800px;"
-    >
-      ⚠️ AI Assistant is <strong>disabled</strong> (no OPENAI_API_KEY).<br>
-      To enable chat, set your key:<br>
-      <code>export OPENAI_API_KEY="your_key_here"</code>
-    </div>
-  {% endif %}
     <div class="container">
       <span class="brand">Pomodoro Timer</span>
       <div class="nav-links">
         {% if current_user.is_authenticated %}
-          <a href="{{ url_for('main.timer') }}" {% if session.get('active_timer') %}target="_blank"{% endif %}>Timer</a>
-          <a href="{{ url_for('main.dashboard') }}" {% if session.get('active_timer') %}target="_blank"{% endif %}>Dashboard</a>
+          <a href="{{ url_for('main.timer') }}">Timer</a>
+          <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
           <a href="{{ url_for('auth.logout') }}">Logout</a>
         {% else %}
           <a href="{{ url_for('auth.login') }}">Login</a>
@@ -33,6 +26,19 @@
       </div>
     </div>
   </nav>
+
+  {# show banner if chat disabled #}
+  {% if not chat_enabled %}
+    <div
+      class="status-message status-alert"
+      role="alert"
+      style="text-align:center; margin:1em auto; max-width:800px;"
+    >
+      ⚠️ AI Assistant is <strong>disabled</strong> (no OPENAI_API_KEY).<br>
+      To enable chat, set your key:<br>
+      <code>export OPENAI_API_KEY="your_key_here"</code>
+    </div>
+  {% endif %}
 
   <div class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}

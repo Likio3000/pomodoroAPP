@@ -9,7 +9,7 @@ from flask_limiter.util import get_remote_address
 
 from config import config_by_name, Config
 
-# Initialize extensions (to be used later in factory)
+# Initialize extensions
 db = SQLAlchemy()
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
@@ -22,7 +22,7 @@ def create_app(config_name=None):
 
     app = Flask(__name__, instance_relative_config=True)
 
-    # --- Configuration ---
+    # --- Load configuration class ---
     try:
         app.config.from_object(config_by_name[config_name])
         print(f" * Loading configuration: {config_name}")
@@ -38,6 +38,7 @@ def create_app(config_name=None):
             "To enable it, export your key:\n"
             "    export OPENAI_API_KEY='your_key_here'"
         )
+
     # --- Production sanity checks ---
     if config_name == 'production':
         if app.config['SECRET_KEY'] == Config.SECRET_KEY:
@@ -78,7 +79,7 @@ def create_app(config_name=None):
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(main_bp)
 
-    # Custom error handler for rate limiting (429 error)
+    # Custom error handlers...
     @app.errorhandler(429)
     def ratelimit_handler(e):
         app.logger.warning(f"Rate limit exceeded for {request.remote_addr}: {e.description}")
@@ -86,13 +87,11 @@ def create_app(config_name=None):
             return jsonify(error=f"Rate limit exceeded: {e.description}"), 429
         return render_template("429.html", error=e.description), 429
 
-    # Custom error handler for general server errors (500)
     @app.errorhandler(500)
     def internal_server_error(e):
-        # ... (error handler code remains the same) ...
         app.logger.error(f"Internal Server Error: {e}", exc_info=True)
         try:
-            db.session.rollback() # Rollback potentially broken DB session
+            db.session.rollback()
             app.logger.info("Database session rolled back due to 500 error.")
         except Exception as rollback_err:
             app.logger.error(f"Error during DB session rollback on 500 error: {rollback_err}", exc_info=True)
@@ -116,10 +115,7 @@ def create_app(config_name=None):
     @app.context_processor
     def inject_chat_status():
         return {
-            # FEATURE_CHAT_ENABLED is True iff OPENAI_API_KEY was set
             'chat_enabled': app.config.get('FEATURE_CHAT_ENABLED', False)
         }
-
-
 
     return app
