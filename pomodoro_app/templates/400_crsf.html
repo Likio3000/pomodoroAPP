@@ -1,0 +1,11 @@
+<!-- pomodoro_app/templates/400_csrf.html -->
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Session Invalid or Expired</h1>
+  <p>There was a problem validating your request, possibly due to an expired session or a missing security token.</p>
+  <p>Please <a href="{{ request.referrer or url_for('main.index') }}">go back</a> or refresh the page and try again.</p>
+  {% if error %}
+    <p><small>Details: {{ error }}</small></p>
+  {% endif %}
+{% endblock %}

@@ -10,14 +10,13 @@ if os.path.exists(dotenv_path):
 
 class Config:
     """Base configuration."""
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'default-dev-secret-key-CHANGE-ME')
+    # REMOVED default fallback - will be None if not set, enforced in ProductionConfig
+    SECRET_KEY = os.environ.get('SECRET_KEY')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    # Define database fallback for development if DATABASE_URL is not set
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL',
-        'sqlite:///' + os.path.join(basedir, 'pomodoro_app', 'pomodoro-dev.db')
-    )
-    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')  # Will be None if not set
+    # REMOVED default fallback - will be None if not set, enforced in ProductionConfig
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')  # Optional, remains None if not set
 
     # Optional: Configure logging level
     LOGGING_LEVEL = os.environ.get('LOGGING_LEVEL', 'INFO').upper()
@@ -39,12 +38,25 @@ class Config:
     # --- NEW: TTS Toggle Flag ---
     TTS_ENABLED = os.environ.get('TTS_ENABLED', 'true').lower() in ('1', 'true', 'yes')
 
+    # +++ NEW: Fail-fast helper method +++
+    @staticmethod
+    def _assert(var_name: str):
+        """Helper to ensure a required environment variable is set."""
+        value = os.environ.get(var_name)
+        if not value:
+            raise RuntimeError(f"Required environment variable '{var_name}' is not set.")
+        # Optional: Add more checks here if needed, e.g., minimum length for SECRET_KEY
+        # if var_name == 'SECRET_KEY' and len(value) < 16:
+        #     raise RuntimeError(f"'{var_name}' must be at least 16 characters long.")
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""
     FLASK_ENV = 'development'
     DEBUG = True
-    # Use a separate DB for development
+    # +++ ADDED BACK: Fallback SECRET_KEY specifically for development +++
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'default-dev-secret-key-CHANGE-ME')
+    # +++ ADDED BACK: Use a separate fallback DB for development +++
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'DATABASE_URL',
         'sqlite:///' + os.path.join(basedir, 'pomodoro_app', 'pomodoro-dev.db')
@@ -57,7 +69,17 @@ class ProductionConfig(Config):
     """Production configuration."""
     FLASK_ENV = 'production'
     DEBUG = False
-    # No runtime logic here—checks moved to create_app()
+
+    # +++ NEW: Fail-fast checks during initialization +++
+    def __init__(self):
+        # Note: super().__init__() is not strictly needed here as base Config.__init__ does nothing,
+        # but included for robustness if the base init changes later.
+        super().__init__()
+        print(" * Applying production config checks...") # Optional: Indicate checks are running
+        # Ensure required variables are set in the environment for production
+        for req in ("SECRET_KEY", "DATABASE_URL"):
+            self._assert(req)
+        print(" * Production config checks passed.") # Optional: Indicate checks passed
 
 
 class TestingConfig(Config):
@@ -67,7 +89,7 @@ class TestingConfig(Config):
     # Use in-memory SQLite database for tests or a dedicated test file
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False  # Disable CSRF for testing forms
-    SECRET_KEY = 'test-secret-key'
+    SECRET_KEY = 'test-secret-key' # Explicitly set for tests, overrides base
     # Disable rate limiting for tests usually
     RATELIMIT_ENABLED = False
 

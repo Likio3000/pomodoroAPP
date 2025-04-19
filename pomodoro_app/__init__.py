@@ -7,7 +7,7 @@ from flask_login import LoginManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from config import config_by_name, Config
+from config import config_by_name, Config # Keep Config import for reference if needed, but specific checks removed
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -23,14 +23,28 @@ def create_app(config_name=None):
     app = Flask(__name__, instance_relative_config=True)
 
     # --- Load configuration class ---
+    selected_config = None
     try:
-        app.config.from_object(config_by_name[config_name])
+        # Instantiate the config class - THIS is where ProductionConfig.__init__ runs its checks
+        selected_config = config_by_name[config_name]()
+        app.config.from_object(selected_config)
         print(f" * Loading configuration: {config_name}")
     except KeyError:
         print(f" ! WARNING: Invalid FLASK_CONFIG '{config_name}'. Falling back to development.")
-        app.config.from_object(config_by_name['development'])
+        # Instantiate development config if specified one fails
+        selected_config = config_by_name['development']()
+        app.config.from_object(selected_config)
+        config_name = 'development' # Update config_name to reflect the actual loaded config
+    except RuntimeError as e:
+        # Catch the RuntimeError raised by _assert in ProductionConfig.__init__
+        print(f"!!! FATAL CONFIGURATION ERROR: {e}")
+        # Optionally log more details here
+        # Exit the application immediately as it cannot run without required config
+        import sys
+        sys.exit(f"Configuration Error: {e}")
 
     # --- Edge case: warn if OPENAI_API_KEY is missing ---
+    # This check remains relevant as OPENAI_API_KEY is optional
     if not app.config.get('OPENAI_API_KEY'):
         app.logger.warning(
             "⚠️  OPENAI_API_KEY is not set. "
@@ -39,14 +53,8 @@ def create_app(config_name=None):
             "    export OPENAI_API_KEY='your_key_here'"
         )
 
-    # --- Production sanity checks ---
-    if config_name == 'production':
-        if app.config['SECRET_KEY'] == Config.SECRET_KEY:
-            raise RuntimeError("SECRET_KEY must be set to a secure value in production!")
-        if not app.config.get('SQLALCHEMY_DATABASE_URI'):
-            raise RuntimeError("DATABASE_URL must be set in production!")
 
-    # Load instance config if it exists
+    # Load instance config if it exists (allows overriding settings locally)
     app.config.from_pyfile('config.py', silent=True)
 
     # --- Logging Setup ---
@@ -71,6 +79,7 @@ def create_app(config_name=None):
     from pomodoro_app.models import User
     @login_manager.user_loader
     def load_user(user_id):
+        # Use db.session.get for primary key lookups (more efficient)
         return db.session.get(User, int(user_id))
 
     # Register blueprints
@@ -91,6 +100,7 @@ def create_app(config_name=None):
     def internal_server_error(e):
         app.logger.error(f"Internal Server Error: {e}", exc_info=True)
         try:
+            # Rollback potentially broken DB session
             db.session.rollback()
             app.logger.info("Database session rolled back due to 500 error.")
         except Exception as rollback_err:
@@ -111,9 +121,10 @@ def create_app(config_name=None):
             return jsonify(error=f"Service Unavailable: {e.description or 'The service is temporarily unavailable'}"), 503
         return render_template("503.html", error=e.description), 503
 
-    # ——— Inject chat feature flag into all templates ———
+    # --- Inject chat feature flag into all templates ---
     @app.context_processor
     def inject_chat_status():
+        # This uses the already loaded app.config
         return {
             'chat_enabled': app.config.get('FEATURE_CHAT_ENABLED', False)
         }
