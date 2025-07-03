@@ -4,4 +4,5 @@ setup(
     name='pomodoro_app',
     version='0.1',
     packages=find_packages(),
+    license="MIT",
 )
