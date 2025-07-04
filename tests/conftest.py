@@ -66,6 +66,10 @@ def logged_in_user(test_app, test_client, clean_db):
     # Optionally log out and clean up after test
     test_client.get('/auth/logout', follow_redirects=True)
     with test_app.app_context():
+        from pomodoro_app.models import PomodoroSession, ActiveTimerState
+        PomodoroSession.query.delete()
+        ActiveTimerState.query.delete()
+        db.session.commit()
         db.session.delete(user)
         db.session.commit()
 
@@ -73,6 +77,7 @@ def logged_in_user(test_app, test_client, clean_db):
 @pytest.fixture(scope='module')
 def rate_limit_app():
     """App instance with rate limiting enabled."""
+    limiter.enabled = True
     app = create_app('development')
     app.config.from_object(RateLimitTestConfig)
     yield app
@@ -96,6 +101,7 @@ def init_rl_database(rate_limit_app):
 @pytest.fixture(scope='function')
 def clean_rl_db(rate_limit_app, init_rl_database):
     with rate_limit_app.app_context():
+        limiter.reset()
         yield init_rl_database
 
 
@@ -118,5 +124,9 @@ def logged_in_user_rate_limit(rate_limit_app, rate_limit_test_client, clean_rl_d
 
     rate_limit_test_client.get('/auth/logout', follow_redirects=True)
     with rate_limit_app.app_context():
+        from pomodoro_app.models import PomodoroSession, ActiveTimerState
+        PomodoroSession.query.delete()
+        ActiveTimerState.query.delete()
+        db.session.commit()
         db.session.delete(user)
         db.session.commit()

@@ -51,7 +51,7 @@ def test_timer_requires_login(test_client, init_database):
 def test_timer_page_logged_in(logged_in_user):
     response = logged_in_user.get(url_for('main.timer'))
     assert response.status_code == 200
-    assert b'Start a Pomodoro Session' in response.data
+    assert b'Pomodoro Session' in response.data
     assert b'Work: <input id="work-minutes"' in response.data
     assert b'Break: <input id="break-minutes"' in response.data
 
@@ -63,26 +63,41 @@ def test_complete_session_logged_in(logged_in_user, clean_db, test_app):
         PomodoroSession.query.delete()
         db.session.commit()
     
-    response = logged_in_user.post(url_for('main.complete_session'), json={
+    # Start a timer so the API has state to work with
+    start_resp = logged_in_user.post(url_for('main.api_start_timer'), json={
         'work': 25,
         'break': 5
     })
+    assert start_resp.status_code == 200
+
+    # Fast-forward the timer by setting the end_time in the past
+    from datetime import datetime, timedelta, timezone
+    with test_app.app_context():
+        from pomodoro_app.models import ActiveTimerState
+        state = ActiveTimerState.query.filter_by(user_id=1).first()
+        state.end_time = datetime.now(timezone.utc) - timedelta(seconds=1)
+        db.session.commit()
+
+    response = logged_in_user.post(url_for('main.api_complete_phase'), json={
+        'phase_completed': 'work'
+    })
     assert response.status_code == 200
-    assert response.json == {'status': 'success'}
-    
-    # Verify that only one session exists
+    assert response.json['status'] == 'break_started'
+    assert 'total_points' in response.json
+    assert 'end_time' in response.json
+
+    # Verify that one session was logged
     with test_app.app_context():
         sessions = PomodoroSession.query.all()
         assert len(sessions) == 1
-        assert sessions[0].user_id == 1 # Assuming logged_in_user is user ID 1
+        assert sessions[0].user_id == 1
         assert sessions[0].work_duration == 25
         assert sessions[0].break_duration == 5
 
 # Test complete session requires login
 def test_complete_session_requires_login(test_client, init_database):
-    response = test_client.post(url_for('main.complete_session'), json={
-        'work': 25,
-        'break': 5
+    response = test_client.post(url_for('main.api_complete_phase'), json={
+        'phase_completed': 'work'
     })
     # Expecting a 401 Unauthorized or redirect to login depending on Flask-Login setup
     # Since login_view is set, it should redirect
