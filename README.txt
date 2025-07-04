@@ -56,6 +56,9 @@ Installation:
    pip install -r requirements.txt
 
 4. Set Environment Variables:
+   # Use the provided sample file for local development
+   cp .env.example .env
+   # then edit .env with your settings, or export the variables manually:
    export FLASK_APP=pomodoro_app:create_app
    export FLASK_ENV=development
    export SECRET_KEY='your-very-secret-flask-key' # IMPORTANT: Set a strong secret key
@@ -79,6 +82,9 @@ Usage:
 - Start a Session: Use the Timer page to set your durations and start a Pomodoro.
 - View Analytics: Check the Dashboard for session statistics.
 - Chat (Optional): If configured, interact with the AI assistant on the dashboard.
+
+Running Tests:
+  pytest
 
 Contributing:
 Fork the repository, create a feature branch, commit your changes, and open a pull request.
