@@ -85,6 +85,8 @@ Usage:
 
 Running Tests:
   pytest
+  # The tests use the built-in TestingConfig and do not require any
+  # environment variables to be set.
 
 Contributing:
 Fork the repository, create a feature branch, commit your changes, and open a pull request.
