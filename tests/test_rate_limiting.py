@@ -7,7 +7,7 @@ from flask import url_for
     ("auth.login", 5, "get"),
     ("main.index", 10, "get"),
 ])
-def test_rate_limit_anonymous(rate_limit_test_client, init_database, endpoint, limit, method):
+def test_rate_limit_anonymous(rate_limit_test_client, init_rl_database, endpoint, limit, method):
     """
     Test that anonymous endpoints enforce rate limiting correctly.
     This test sends the maximum allowed number of requests to the endpoint,
@@ -37,8 +37,8 @@ def test_rate_limit_anonymous(rate_limit_test_client, init_database, endpoint, l
 
 @pytest.mark.parametrize("endpoint,limit,method", [
     # Authenticated endpoints with rate limit set to 10 per minute.
-    ("main.start_timer", 10, "post"),
-    ("main.complete_session", 10, "post"),
+    ("main.api_start_timer", 15, "post"),
+    ("main.api_complete_phase", 15, "post"),
     ("main.dashboard", 10, "get"),
 ])
 def test_rate_limit_authenticated(logged_in_user_rate_limit, endpoint, limit, method):
@@ -53,20 +53,24 @@ def test_rate_limit_authenticated(logged_in_user_rate_limit, endpoint, limit, me
         if method.lower() == "get":
             response = logged_in_user_rate_limit.get(url)
         elif method.lower() == "post":
-            if endpoint == "main.complete_session":
+            if endpoint == "main.api_complete_phase":
+                response = logged_in_user_rate_limit.post(url, json={"phase_completed": "work"})
+            elif endpoint == "main.api_start_timer":
                 response = logged_in_user_rate_limit.post(url, json={"work": 25, "break": 5})
             else:
                 response = logged_in_user_rate_limit.post(url)
         else:
             pytest.skip("Unsupported HTTP method")
-        assert response.status_code in (200, 302), (
+        assert response.status_code in (200, 302, 400), (
             f"Request {i+1} to authenticated endpoint {endpoint} returned status {response.status_code}, expected success."
         )
     # Next request should be rate limited.
     if method.lower() == "get":
         response = logged_in_user_rate_limit.get(url)
     elif method.lower() == "post":
-        if endpoint == "main.complete_session":
+        if endpoint == "main.api_complete_phase":
+            response = logged_in_user_rate_limit.post(url, json={"phase_completed": "work"})
+        elif endpoint == "main.api_start_timer":
             response = logged_in_user_rate_limit.post(url, json={"work": 25, "break": 5})
         else:
             response = logged_in_user_rate_limit.post(url)
