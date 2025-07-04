@@ -42,7 +42,7 @@ def login():
         user = User.query.filter_by(email=form.email.data.lower()).first()
         if user and check_password_hash(user.password, form.password.data):
             # Credentials valid – log in the user
-            login_user(user, remember=form.remember.data)  # create user session&#8203;:contentReference[oaicite:19]{index=19}
+            login_user(user, remember=form.remember.data)  # create user session
             # Redirect to next page if exists, or dashboard
             next_page = request.args.get('next')
             return redirect(next_page or url_for('main.dashboard'))
