@@ -64,7 +64,12 @@ class ActiveTimerState(db.Model):
     # Decided against the backref on User for simplicity, can query by user_id easily.
 
     def __repr__(self):
-        end_repr = self.end_time.isoformat() if self.end_time else "None"        return f'<ActiveTimerState user_id={self.user_id} phase={self.phase} mult={self.current_multiplier} ends={end_repr}>'
+        end_repr = self.end_time.isoformat() if self.end_time else "None"
+        return (
+            f"<ActiveTimerState user_id={self.user_id} "
+            f"phase={self.phase} mult={self.current_multiplier} "
+            f"ends={end_repr}>"
+        )
 
 
 # +++ Chat Message History Model +++
