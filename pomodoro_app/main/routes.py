@@ -206,3 +206,14 @@ def dashboard():
                            week_sessions=week_sessions,
                            sessions=aware_sessions, # Pass the potentially timezone-aware sessions
                            chat_enabled=chat_enabled)
+
+
+@main.route('/leaderboard')
+def leaderboard():
+    """Display leaderboard of users ordered by points."""
+    try:
+        users = db.session.query(User).order_by(User.total_points.desc()).limit(10).all()
+    except SQLAlchemyError as e:
+        current_app.logger.error(f"Leaderboard: DB error: {e}", exc_info=True)
+        users = []
+    return render_template('main/leaderboard.html', users=users)

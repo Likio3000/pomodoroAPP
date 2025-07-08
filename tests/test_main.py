@@ -103,3 +103,18 @@ def test_complete_session_requires_login(test_client, init_database):
     # Since login_view is set, it should redirect
     assert response.status_code == 302 # Redirect status
     assert 'login' in response.location # Check redirect location
+
+
+def test_leaderboard_page(test_client, init_database, test_app):
+    from werkzeug.security import generate_password_hash
+    with test_app.app_context():
+        from pomodoro_app.models import User
+        user1 = User(name='Alice', email='alice@example.com', password=generate_password_hash('a'), total_points=100)
+        user2 = User(name='Bob', email='bob@example.com', password=generate_password_hash('b'), total_points=50)
+        db.session.add_all([user1, user2])
+        db.session.commit()
+
+    response = test_client.get(url_for('main.leaderboard'))
+    assert response.status_code == 200
+    assert b'Leaderboard' in response.data
+    assert b'Alice' in response.data
