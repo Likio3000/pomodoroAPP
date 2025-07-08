@@ -8,19 +8,19 @@ from pomodoro_app.models import User, PomodoroSession, ActiveTimerState
 # --- Constants ---
 MULTIPLIER_RULES = [
     {'id': 'base',          'condition': 'Base Rate (Work)',        'bonus': 0.0, 'details': 'Active during focused work.'},
+    # --- New duration milestones ---
     {'id': 'focus25',       'condition': 'Work Block > 25 Min',     'bonus': 0.1, 'details': 'Complete >25 mins in one work session.'},
     {'id': 'focus45',       'condition': 'Work Block > 45 Min',     'bonus': 0.2, 'details': 'Complete >45 mins in one work session.'},
-    {'id': 'consecutive3',  'condition': '3+ Consecutive Sessions', 'bonus': 0.1, 'details': 'Complete 3+ work/break cycles.'},
-    {'id': 'consecutive5',  'condition': '5+ Consecutive Sessions', 'bonus': 0.2, 'details': 'Complete 5+ work/break cycles.'},
-    {'id': 'daily3',        'condition': '3+ Day Usage Streak',     'bonus': 0.1, 'details': 'Use timer 3+ days running.'},
-    {'id': 'daily7',        'condition': '7+ Day Usage Streak',     'bonus': 0.2, 'details': 'Use timer 7+ days running.'},
-    # --- New duration milestones ---
     {'id': 'focus60',       'condition': 'Work Block > 60 Min',     'bonus': 0.3, 'details': 'Complete >60 mins in one work session.'},
     {'id': 'focus90',       'condition': 'Work Block > 90 Min',     'bonus': 0.5, 'details': 'Complete >90 mins in one work session.'},
     # --- Extended consistency ---
+    {'id': 'consecutive3',  'condition': '3+ Consecutive Sessions', 'bonus': 0.1, 'details': 'Complete 3+ work/break cycles.'},
+    {'id': 'consecutive5',  'condition': '5+ Consecutive Sessions', 'bonus': 0.2, 'details': 'Complete 5+ work/break cycles.'},
     {'id': 'consecutive10', 'condition': '10+ Consecutive Sessions','bonus': 0.3, 'details': 'Complete 10+ work/break cycles.'},
     {'id': 'consecutive20', 'condition': '20+ Consecutive Sessions','bonus': 0.5, 'details': 'Complete 20+ work/break cycles.'},
     # --- Long-term daily streaks ---
+    {'id': 'daily3',        'condition': '3+ Day Usage Streak',     'bonus': 0.1, 'details': 'Use timer 3+ days running.'},
+    {'id': 'daily7',        'condition': '7+ Day Usage Streak',     'bonus': 0.2, 'details': 'Use timer 7+ days running.'},
     {'id': 'daily14',       'condition': '14+ Day Usage Streak',    'bonus': 0.3, 'details': 'Use timer 14+ days running.'},
     {'id': 'daily30',       'condition': '30+ Day Usage Streak',    'bonus': 0.5, 'details': 'Use timer 30+ days running.'},
     # --- Daily focus total ---
