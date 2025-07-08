@@ -740,6 +740,7 @@ body.dark-theme .multiplier-rules-container {
 body.dark-theme .status-message { background: #333; color: #eee; }
 body.dark-theme .multiplier-rules-table thead th { background: #2c2c2c; }
 body.dark-theme .multiplier-rules-table tbody tr:nth-child(even) { background: #2a2a2a; }
+
 body.dark-theme .btn {
   background: #444;
   color: #eee;
