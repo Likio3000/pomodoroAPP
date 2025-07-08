@@ -2,7 +2,8 @@
 # Handles user-facing HTML page routes for the main blueprint.
 
 from flask import (
-    Blueprint, render_template, request, jsonify, redirect, url_for, session, current_app
+    Blueprint, render_template, request, jsonify, redirect, url_for, session,
+    current_app, flash
 )
 from flask_login import login_required, current_user
 from sqlalchemy import func # Keep func if used directly for dashboard stats
@@ -12,7 +13,7 @@ from datetime import datetime, timedelta, timezone, date
 # Import blueprint object, database instance, limiter, and models
 from . import main # Import the blueprint registered in __init__.py
 from pomodoro_app import db, limiter
-from pomodoro_app.models import User, PomodoroSession, ActiveTimerState
+from pomodoro_app.models import User, PomodoroSession, ActiveTimerState, ChatMessage
 
 # Import constants and helpers needed by these routes specifically
 from .logic import MULTIPLIER_RULES, calculate_current_multiplier, get_active_multiplier_rules # <-- Import new function
@@ -238,3 +239,42 @@ def leaderboard():
         current_app.logger.error(f"Leaderboard: DB error: {e}", exc_info=True)
         users = []
     return render_template('main/leaderboard.html', users=users)
+
+
+@main.route('/mydata')
+@login_required
+def my_data():
+    """Display user's stored chat history and provide deletion options."""
+    user_id = current_user.id
+    try:
+        messages = (
+            db.session.query(ChatMessage)
+            .filter_by(user_id=user_id)
+            .order_by(ChatMessage.timestamp.desc())
+            .limit(15)
+            .all()
+        )
+    except SQLAlchemyError as e:
+        current_app.logger.error(f"MyData: DB error fetching messages for user {user_id}: {e}")
+        messages = []
+    return render_template('main/my_data.html', messages=messages)
+
+
+@main.route('/mydata/delete/<int:message_id>', methods=['POST'])
+@login_required
+def delete_message(message_id):
+    """Delete a chat message belonging to the current user."""
+    user_id = current_user.id
+    try:
+        message = ChatMessage.query.filter_by(id=message_id, user_id=user_id).first()
+        if message:
+            db.session.delete(message)
+            db.session.commit()
+            flash('Message deleted.', 'success')
+        else:
+            flash('Message not found.', 'error')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f"MyData: DB error deleting message {message_id} for user {user_id}: {e}")
+        flash('Database error deleting message.', 'error')
+    return redirect(url_for('main.my_data'))

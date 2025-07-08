@@ -40,6 +40,31 @@ AUDIO_TEMP_DIR = os.path.join(tempfile.gettempdir(), "pomodoro_agent_audio")
 os.makedirs(AUDIO_TEMP_DIR, exist_ok=True)
 
 
+def trim_chat_history(user_id, keep=15):
+    """Remove oldest chat messages beyond the keep limit for a user."""
+    try:
+        old_ids = [
+            mid
+            for (mid,) in (
+                db.session.query(ChatMessage.id)
+                .filter_by(user_id=user_id)
+                .order_by(ChatMessage.timestamp.desc())
+                .offset(keep)
+                .all()
+            )
+        ]
+        if old_ids:
+            ChatMessage.query.filter(ChatMessage.id.in_(old_ids)).delete(
+                synchronize_session=False
+            )
+            db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(
+            f"Chat history trim error for user {user_id}: {e}", exc_info=True
+        )
+
+
 def initialize_openai_client():
     """Initializes the OpenAI client if not already done."""
     global openai_client, _openai_initialized
@@ -579,6 +604,7 @@ If the question is unrelated to productivity, politely decline.
         user_entry = ChatMessage(user_id=user.id, role="user", text=user_prompt)
         db.session.add(user_entry)
         db.session.commit()
+        trim_chat_history(user.id, keep=15)
 
         history = (
             ChatMessage.query.filter_by(user_id=user.id)
@@ -602,6 +628,7 @@ If the question is unrelated to productivity, politely decline.
 
         db.session.add(ChatMessage(user_id=user.id, role="assistant", text=ai_response))
         db.session.commit()
+        trim_chat_history(user.id, keep=15)
 
         # --- TTS Generation (Conditional) ---
         audio_url = None
