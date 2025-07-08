@@ -14,6 +14,7 @@ from flask import request, jsonify, current_app, send_file, abort, url_for
 from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func
+from pomodoro_app.agent_config import load_personas
 
 try:
     from openai import OpenAI
@@ -552,19 +553,12 @@ def api_chat():
         return jsonify({'error': 'Could not retrieve user data for context.'}), 500
 
 
-    # --- Define agent personalities and corresponding TTS voices ---
-    agent_prompts = {
-        "motivator": "You are a motivating productivity coach. Always encourage the user, celebrate their wins, and offer positive reinforcement.",
-        "coach": "You are a wise productivity coach. Offer practical advice and help the user reflect on their habits.",
-        "default": "You are a helpful and encouraging productivity assistant for a web app that uses the Pomodoro technique and a points system."
-    }
-    agent_voices = {
-        "motivator": "nova",
-        "coach": "shimmer",
-        "default": "alloy"
-    }
-    agent_persona = agent_prompts.get(agent_type, agent_prompts['default'])
-    tts_voice = agent_voices.get(agent_type, agent_voices['default'])
+    # --- Load agent personalities and voices from configuration ---
+    personas = load_personas()
+    default = personas.get('default', {})
+    persona_data = personas.get(agent_type, default)
+    agent_persona = persona_data.get('prompt', default.get('prompt', ''))
+    tts_voice = persona_data.get('voice', default.get('voice'))
 
     # --- Construct Context ---
     # Use fresh data fetched from DB where possible

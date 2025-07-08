@@ -1,5 +1,7 @@
 # tests/test_main.py
 from flask import url_for
+import json
+from pomodoro_app.main import api_routes
 from pomodoro_app.models import PomodoroSession # Import if needed
 from pomodoro_app import db
 
@@ -120,3 +122,52 @@ def test_leaderboard_page(test_client, init_database, test_app):
     assert response.status_code == 200
     assert b'Leaderboard' in response.data
     assert b'Alice' in response.data
+
+
+def test_api_chat_uses_configured_prompt(logged_in_user, test_app, tmp_path, monkeypatch):
+    persona_file = tmp_path / "personas.json"
+    persona_file.write_text(json.dumps({
+        "testagent": {"prompt": "Special persona for tests.", "voice": "alloy"},
+        "default": {"prompt": "Default persona", "voice": "all"}
+    }))
+    with test_app.app_context():
+        test_app.config["FEATURE_CHAT_ENABLED"] = True
+        test_app.config["AGENT_PERSONA_FILE"] = str(persona_file)
+
+    recorded = {}
+
+    class DummyCompletion:
+        @staticmethod
+        def create(messages, model=None, max_tokens=None, temperature=None, user=None):
+            recorded["messages"] = messages
+            return type("R", (), {"choices": [type("C", (), {"message": type("M", (), {"content": "hi"})()})]})()
+
+    class DummyChat:
+        completions = DummyCompletion()
+
+    class DummySpeech:
+        @staticmethod
+        def create(*args, **kwargs):
+            class DummyResp:
+                def stream_to_file(self, path):
+                    pass
+            return DummyResp()
+
+    class DummyAudio:
+        speech = DummySpeech()
+
+    class DummyOpenAI:
+        chat = DummyChat()
+        audio = DummyAudio()
+
+    monkeypatch.setattr(api_routes, "openai_client", DummyOpenAI)
+    monkeypatch.setattr(api_routes, "_openai_initialized", True)
+
+    resp = logged_in_user.post(url_for('main.api_chat'), json={
+        'prompt': 'Hi',
+        'dashboard_data': {},
+        'tts_enabled': False,
+        'agent_type': 'testagent'
+    })
+    assert resp.status_code == 200
+    assert recorded["messages"][0]["content"].lstrip().startswith("Special persona for tests.")

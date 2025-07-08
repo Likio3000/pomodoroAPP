@@ -18,6 +18,12 @@ class Config:
 
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')  # Optional, remains None if not set
 
+    # Path to JSON file containing agent persona prompts and voices
+    AGENT_PERSONA_FILE = os.environ.get(
+        'AGENT_PERSONA_FILE',
+        os.path.join(basedir, 'agent_personas.json')
+    )
+
     # Optional: Configure logging level
     LOGGING_LEVEL = os.environ.get('LOGGING_LEVEL', 'INFO').upper()
 
