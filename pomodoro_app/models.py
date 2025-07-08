@@ -66,8 +66,14 @@ class ActiveTimerState(db.Model):
     def __repr__(self):
         end_repr = self.end_time.isoformat() if self.end_time else "None"
         return (
+
             f'<ActiveTimerState user_id={self.user_id} '
             f'phase={self.phase} mult={self.current_multiplier} ends={end_repr}>'
+
+            f"<ActiveTimerState user_id={self.user_id} "
+            f"phase={self.phase} mult={self.current_multiplier} "
+            f"ends={end_repr}>"
+
         )
 
 
