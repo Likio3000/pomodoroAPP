@@ -26,7 +26,7 @@ except ImportError:
 # Import blueprint object, database instance, limiter, and models
 from . import main  # This is the blueprint registered in __init__.py
 from pomodoro_app import db, limiter
-from pomodoro_app.models import User, PomodoroSession, ActiveTimerState
+from pomodoro_app.models import User, PomodoroSession, ActiveTimerState, ChatMessage
 
 # Import helper functions from logic.py
 from .logic import calculate_current_multiplier, update_streaks
@@ -527,8 +527,9 @@ def api_chat():
     if not user_prompt:
         return jsonify({'error': 'Prompt cannot be empty.'}), 400
 
-    dashboard_data = data.get('dashboard_data', {}) # dashboard_data from JS might be minimal/unused if fetching below
+    dashboard_data = data.get('dashboard_data', {})
     agent_type = data.get('agent_type', 'default')
+    message_count = data.get('message_count')
     # --- Get user's TTS preference from request ---
     user_wants_tts = data.get('tts_enabled', False) # Default to False if missing/invalid
     if not isinstance(user_wants_tts, bool): user_wants_tts = False # Ensure boolean
@@ -574,19 +575,33 @@ If the question is unrelated to productivity, politely decline.
 """
 
     try:
-        # --- Call OpenAI Chat Completion ---
+        # --- Save user message and build history ---
+        user_entry = ChatMessage(user_id=user.id, role="user", text=user_prompt)
+        db.session.add(user_entry)
+        db.session.commit()
+
+        history = (
+            ChatMessage.query.filter_by(user_id=user.id)
+            .order_by(ChatMessage.timestamp.desc())
+            .limit(10)
+            .all()
+        )
+        history = list(reversed(history))
+        messages = [{"role": msg.role, "content": msg.text} for msg in history]
+        messages.insert(0, {"role": "system", "content": context})
+
         chat_completion = openai_client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": context},
-                {"role": "user", "content": user_prompt}
-            ],
-            model="gpt-4o-mini", # Updated model name if needed
+            messages=messages,
+            model="gpt-4o-mini",
             max_tokens=180,
             temperature=0.6,
-            user=f"user-{user.id}" # Helps OpenAI monitor for abuse
+            user=f"user-{user.id}"
         )
         ai_response = chat_completion.choices[0].message.content.strip()
         current_app.logger.info(f"API Chat: OpenAI response generated for User {user.id}.")
+
+        db.session.add(ChatMessage(user_id=user.id, role="assistant", text=ai_response))
+        db.session.commit()
 
         # --- TTS Generation (Conditional) ---
         audio_url = None
