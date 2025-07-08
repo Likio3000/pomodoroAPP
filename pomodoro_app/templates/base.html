@@ -26,7 +26,6 @@
           <a href="{{ url_for('auth.register') }}">Register</a>
         {% endif %}
       </div>
-      <button id="theme-toggle" class="theme-toggle btn btn-sm">Dark Mode</button>
     </div>
   </nav>
 
@@ -55,6 +54,5 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </div>
-  <script src="{{ url_for('static', filename='js/theme_toggle.js') }}" defer></script>
 </body>
 </html>
