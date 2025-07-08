@@ -118,8 +118,8 @@ def dashboard():
     total_points = 0
     # Initialize stats to 0
     total_focus, total_break, total_sessions = 0, 0, 0
-    today_focus, today_sessions = 0, 0
-    week_focus, week_sessions = 0, 0
+    today_focus, today_sessions, today_points = 0, 0, 0
+    week_focus, week_sessions, week_points = 0, 0, 0
     aware_sessions = [] # Initialize as empty list
 
     try:
@@ -169,6 +169,25 @@ def dashboard():
         ).scalar()
         current_app.logger.debug(f"Dashboard: User {user_id} Week Stats - Focus: {week_focus}, Sessions: {week_sessions}")
 
+        # --- Points for Today and This Week ---
+        today_points = db.session.query(
+            func.coalesce(func.sum(PomodoroSession.points_earned), 0)
+        ).filter(
+            PomodoroSession.user_id == user_id,
+            PomodoroSession.timestamp >= today_start_utc
+        ).scalar()
+
+        week_points = db.session.query(
+            func.coalesce(func.sum(PomodoroSession.points_earned), 0)
+        ).filter(
+            PomodoroSession.user_id == user_id,
+            PomodoroSession.timestamp >= start_of_week_utc
+        ).scalar()
+
+        current_app.logger.debug(
+            f"Dashboard: User {user_id} Points - Today: {today_points}, Week: {week_points}"
+        )
+
         # --- Fetch Session History (Limit results for performance) ---
         sessions_from_db = db.session.query(PomodoroSession).filter_by(user_id=user_id).order_by(PomodoroSession.timestamp.desc()).limit(100).all()
         current_app.logger.debug(f"Dashboard: Fetched {len(sessions_from_db)} session history entries for User {user_id}")
@@ -202,8 +221,10 @@ def dashboard():
                            total_sessions=total_sessions,
                            today_focus=today_focus,
                            today_sessions=today_sessions,
+                           today_points=today_points,
                            week_focus=week_focus,
                            week_sessions=week_sessions,
+                           week_points=week_points,
                            sessions=aware_sessions, # Pass the potentially timezone-aware sessions
                            chat_enabled=chat_enabled)
 

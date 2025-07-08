@@ -10,8 +10,10 @@
        data-total-sessions="{{ total_sessions }}"
        data-today-focus="{{ today_focus }}"
        data-today-sessions="{{ today_sessions }}"
+       data-today-points="{{ today_points }}"
        data-week-focus="{{ week_focus }}"
        data-week-sessions="{{ week_sessions }}"
+       data-week-points="{{ week_points }}"
        >
     {# No visual content here #}
   </div>
@@ -32,6 +34,7 @@
       <ul class="stats">
         <li><strong>Focused Time Today:</strong> {{ today_focus }} minutes</li>
         <li><strong>Sessions Today:</strong> {{ today_sessions }}</li>
+        <li><strong>Points Today:</strong> {{ today_points }}</li>
       </ul>
     </div>
 
@@ -40,6 +43,7 @@
        <ul class="stats">
         <li><strong>Focused Time This Week:</strong> {{ week_focus }} minutes</li>
         <li><strong>Sessions This Week:</strong> {{ week_sessions }}</li>
+        <li><strong>Points This Week:</strong> {{ week_points }}</li>
       </ul>
     </div>
   </div>
