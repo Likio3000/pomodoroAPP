@@ -40,6 +40,8 @@ def test_dashboard_logged_in(logged_in_user, clean_db, test_app): # Use logged_i
     assert b'Total Focused Time:</strong> 75 minutes' in response.data
     assert b'Total Break Time:</strong> 15 minutes' in response.data
     assert b'Completed Pomodoro Sessions:</strong> 2' in response.data
+    assert b'Points Today:</strong> 0' in response.data
+    assert b'Points This Week:</strong> 0' in response.data
 
 # Test timer page requires login
 def test_timer_requires_login(test_client, init_database):
