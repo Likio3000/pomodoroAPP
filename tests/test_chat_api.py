@@ -238,3 +238,14 @@ def test_chat_history_persistence(chat_logged_in_user, chat_app, mock_openai):
     messages_sent = chat_create.call_args_list[-1][1]['messages']
     assert len(messages_sent) == 4
 
+
+def test_chat_message_cap(chat_logged_in_user, chat_app, mock_openai):
+    payload = {'prompt': 'Hello', 'dashboard_data': {}, 'tts_enabled': False}
+    for i in range(10):
+        payload['prompt'] = f'msg {i}'
+        r = chat_logged_in_user.post('/api/chat', json=payload)
+        assert r.status_code == 200
+
+    with chat_app.app_context():
+        assert ChatMessage.query.count() == 15
+

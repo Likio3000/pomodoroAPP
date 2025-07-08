@@ -171,3 +171,79 @@ def test_api_chat_uses_configured_prompt(logged_in_user, test_app, tmp_path, mon
     })
     assert resp.status_code == 200
     assert recorded["messages"][0]["content"].lstrip().startswith("Special persona for tests.")
+
+
+def test_mydata_requires_login(test_client, init_database):
+    resp = test_client.get(url_for('main.my_data'), follow_redirects=True)
+    assert resp.status_code == 200
+    assert b'Login' in resp.data
+
+
+def test_mydata_view_and_delete(logged_in_user, clean_db, test_app):
+    from pomodoro_app.models import ChatMessage, User
+
+    with test_app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        msg1 = ChatMessage(user_id=user.id, role='user', text='hello')
+        msg2 = ChatMessage(user_id=user.id, role='assistant', text='hi')
+        db.session.add_all([msg1, msg2])
+        db.session.commit()
+        msg1_id = msg1.id
+
+    resp = logged_in_user.get(url_for('main.my_data'))
+    assert resp.status_code == 200
+    assert b'hello' in resp.data
+
+    resp = logged_in_user.post(url_for('main.delete_message', message_id=msg1_id), follow_redirects=True)
+    assert resp.status_code == 200
+    assert b'Message deleted' in resp.data
+
+    with test_app.app_context():
+        assert ChatMessage.query.get(msg1_id) is None
+
+
+def test_mydata_limit(logged_in_user, clean_db, test_app, monkeypatch):
+    from pomodoro_app.main import api_routes
+
+    class DummyCompletion:
+        @staticmethod
+        def create(messages, model=None, max_tokens=None, temperature=None, user=None):
+            return type("R", (), {"choices": [type("C", (), {"message": type("M", (), {"content": "ok"})()})]})()
+
+    class DummyChat:
+        completions = DummyCompletion()
+
+    class DummySpeech:
+        @staticmethod
+        def create(*args, **kwargs):
+            class DummyResp:
+                def stream_to_file(self, path):
+                    pass
+            return DummyResp()
+
+    class DummyAudio:
+        speech = DummySpeech()
+
+    class DummyOpenAI:
+        chat = DummyChat()
+        audio = DummyAudio()
+
+    monkeypatch.setattr(api_routes, "openai_client", DummyOpenAI)
+    monkeypatch.setattr(api_routes, "_openai_initialized", True)
+
+    for i in range(10):
+        resp = logged_in_user.post(url_for('main.api_chat'), json={
+            'prompt': f'msg {i}',
+            'dashboard_data': {},
+            'tts_enabled': False
+        })
+        assert resp.status_code == 200
+
+    resp = logged_in_user.get(url_for('main.my_data'))
+    assert resp.status_code == 200
+    assert resp.data.count(b'chat-history-item') == 15
+
+    with test_app.app_context():
+        from pomodoro_app.models import ChatMessage, User
+        user = User.query.filter_by(email='test@example.com').first()
+        assert ChatMessage.query.filter_by(user_id=user.id).count() == 15
