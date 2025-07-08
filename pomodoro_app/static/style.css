@@ -3,6 +3,17 @@ h1, h2, h3 {
   line-height: 1.3;
 }
 
+body {
+  background: #ffffff;
+  color: #212529;
+  line-height: 1.6;
+}
+
+body.dark-theme {
+  background: #121212;
+  color: #e9e9e9;
+}
+
 /* --- Dashboard Section Titles (secondary, not main) --- */
 .dashboard-section-title {
   color: #23272f;
@@ -702,7 +713,27 @@ h1, h2, h3 {
    .multiplier-rules-table tbody td {
        padding: 0.6em 0.5em;
    }
-   .multiplier-rules-table td:nth-child(3) { /* Details */
+  .multiplier-rules-table td:nth-child(3) { /* Details */
        font-size: 0.9em; /* Slightly smaller details on mobile */
    }
 }
+
+/* --- Dark Theme Overrides --- */
+body.dark-theme .navbar {
+  background: #222;
+}
+body.dark-theme .navbar .nav-links a { color: #ddd; }
+body.dark-theme .navbar .nav-links a:hover { color: #fff; }
+body.dark-theme .container {
+  background: transparent;
+}
+body.dark-theme #timer-component,
+body.dark-theme .stats-column,
+body.dark-theme .chat-agent-section,
+body.dark-theme .multiplier-rules-container {
+  background: #1e1e1e;
+  color: inherit;
+}
+body.dark-theme .status-message { background: #333; color: #eee; }
+body.dark-theme .multiplier-rules-table thead th { background: #2c2c2c; }
+body.dark-theme .multiplier-rules-table tbody tr:nth-child(even) { background: #2a2a2a; }
