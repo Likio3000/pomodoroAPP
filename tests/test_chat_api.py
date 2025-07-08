@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 from pomodoro_app import create_app, db, limiter
 from pomodoro_app.models import User
+from pomodoro_app.models import ChatMessage
 from tests.conftest import TestConfig, RateLimitTestConfig
 
 
@@ -209,4 +210,31 @@ def test_chat_rate_limiting(logged_in_user_chat_rate_limit, mock_openai):
         assert r.status_code == 200
     r = logged_in_user_chat_rate_limit.post(url, json=payload)
     assert r.status_code == 429
+
+
+def test_chat_history_persistence(chat_logged_in_user, chat_app, mock_openai):
+    chat_create, _ = mock_openai
+
+    payload = {'prompt': 'Hello', 'dashboard_data': {}, 'tts_enabled': False}
+    r = chat_logged_in_user.post('/api/chat', json=payload)
+    assert r.status_code == 200
+
+    with chat_app.app_context():
+        msgs = ChatMessage.query.order_by(ChatMessage.timestamp).all()
+        assert len(msgs) == 2
+        assert msgs[0].role == 'user'
+        assert msgs[0].text == 'Hello'
+        assert msgs[1].role == 'assistant'
+
+    payload['prompt'] = 'Second'
+    r = chat_logged_in_user.post('/api/chat', json=payload)
+    assert r.status_code == 200
+
+    with chat_app.app_context():
+        msgs = ChatMessage.query.order_by(ChatMessage.timestamp).all()
+        assert len(msgs) == 4
+
+    # Verify OpenAI received recent history (system + 3 messages)
+    messages_sent = chat_create.call_args_list[-1][1]['messages']
+    assert len(messages_sent) == 4
 

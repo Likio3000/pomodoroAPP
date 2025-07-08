@@ -150,7 +150,8 @@ async function sendAgentMessage() {
                 prompt: message,
                 dashboard_data: dashboardData,
                 agent_type: agentType,
-                tts_enabled: isTtsEnabledByUser
+                tts_enabled: isTtsEnabledByUser,
+                message_count: chatHistory.length
             })
         });
         const data = await response.json();

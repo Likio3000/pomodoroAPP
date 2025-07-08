@@ -24,7 +24,7 @@ class User(UserMixin, db.Model):
 class PomodoroSession(db.Model):
     __tablename__ = 'sessions'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     work_duration = db.Column(db.Integer, nullable=False)
     break_duration = db.Column(db.Integer, nullable=False)
     # +++ Points earned in this specific session (optional but good for history) +++
@@ -64,5 +64,30 @@ class ActiveTimerState(db.Model):
     # Decided against the backref on User for simplicity, can query by user_id easily.
 
     def __repr__(self):
-        end_repr = self.end_time.isoformat() if self.end_time else "None"
-        return f'<ActiveTimerState user_id={self.user_id} phase={self.phase} mult={self.current_multiplier} ends={end_repr}>'
+        end_repr = self.end_time.isoformat() if self.end_time else "None"        return f'<ActiveTimerState user_id={self.user_id} phase={self.phase} mult={self.current_multiplier} ends={end_repr}>'
+
+
+# +++ Chat Message History Model +++
+class ChatMessage(db.Model):
+    __tablename__ = 'chat_messages'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    role = db.Column(db.String(20), nullable=False)
+    text = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship(
+        'User',
+        backref=db.backref(
+            'chat_messages',
+            lazy='dynamic',
+            order_by='ChatMessage.timestamp',
+            cascade='all, delete-orphan'
+        )
+    )
+
+    __table_args__ = (
+        Index('ix_chat_messages_user_id_timestamp', 'user_id', 'timestamp'),
+    )
+
