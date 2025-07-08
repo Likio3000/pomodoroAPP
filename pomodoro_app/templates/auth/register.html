@@ -26,4 +26,8 @@
     {{ form.submit(class="btn") }}
   </form>
   <p>Already have an account? <a href="{{ url_for('auth.login') }}">Log in here.</a></p>
+  <script>
+    sessionStorage.removeItem('pomodoroAgentChatHistory_v1');
+    sessionStorage.removeItem('pomodoroAgentSelected_v1');
+  </script>
 {% endblock %}

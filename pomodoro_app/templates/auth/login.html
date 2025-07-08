@@ -19,4 +19,8 @@
     {{ form.submit(class="btn") }}
   </form>
   <p>New user? <a href="{{ url_for('auth.register') }}">Register an account.</a></p>
+  <script>
+    sessionStorage.removeItem('pomodoroAgentChatHistory_v1');
+    sessionStorage.removeItem('pomodoroAgentSelected_v1');
+  </script>
 {% endblock %}
