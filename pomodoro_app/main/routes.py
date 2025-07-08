@@ -73,14 +73,16 @@ def timer():
              relevant_work_duration = active_state.work_duration_minutes
              current_app.logger.debug(f"Timer Route: Found active state for User {user_id}. Phase: {active_state.phase}. Multiplier: {active_multiplier}. Relevant duration for rules: {relevant_work_duration}")
         else:
-             # Calculate potential multiplier for *next* session using the helper
-             # Use 0 duration for potential calculation to avoid showing duration bonus before start
-             relevant_work_duration = 0
-             active_multiplier = calculate_current_multiplier(user, relevant_work_duration)
-             current_app.logger.debug(f"Timer Route: No active state for User {user_id}. Potential next multiplier: {active_multiplier}. Relevant duration for rules: {relevant_work_duration}")
+            # Calculate potential multiplier for *next* session using the helper
+            # Use 0 duration for potential calculation to avoid showing duration bonus before start
+            relevant_work_duration = 0
+            active_multiplier = calculate_current_multiplier(user, relevant_work_duration, 0)
+            current_app.logger.debug(
+                f"Timer Route: No active state for User {user_id}. Potential next multiplier: {active_multiplier}. Relevant duration for rules: {relevant_work_duration}"
+            )
 
         # Call the function to get the set of active rule IDs based on current user state and the relevant duration
-        active_rule_ids = get_active_multiplier_rules(user, relevant_work_duration)
+        active_rule_ids = get_active_multiplier_rules(user, relevant_work_duration, getattr(active_state, 'break_duration_minutes', 0))
 
     except SQLAlchemyError as e:
         current_app.logger.error(f"Timer Route: Database error loading data for User {user_id}: {e}", exc_info=True)

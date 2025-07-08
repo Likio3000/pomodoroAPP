@@ -142,7 +142,7 @@ def api_start_timer():
             current_app.logger.error(f"API Start: Cannot find User {user_id} to start timer.")
             return jsonify({'error': 'User not found.'}), 500
 
-        current_multiplier = calculate_current_multiplier(user, work_minutes)
+        current_multiplier = calculate_current_multiplier(user, work_minutes, break_minutes)
         current_state = db.session.query(ActiveTimerState).filter_by(user_id=user_id).with_for_update().first()
 
         if current_state:
@@ -342,7 +342,7 @@ def api_complete_phase():
             # Instead of deleting, update the state for the next work session
             work_minutes = server_state.work_duration_minutes
             # Recalculate multiplier based on streaks *before* the work session starts
-            next_multiplier = calculate_current_multiplier(user, work_minutes)
+            next_multiplier = calculate_current_multiplier(user, work_minutes, server_state.break_duration_minutes)
             work_end_time_utc = now_utc + timedelta(minutes=work_minutes)
 
             server_state.phase = 'work'
