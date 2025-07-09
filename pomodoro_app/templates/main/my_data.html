@@ -10,7 +10,8 @@
             <strong>{{ msg.role.title() }}</strong>
             <em>{{ msg.timestamp.isoformat() if msg.timestamp else '' }}</em>
             <form action="{{ url_for('main.delete_message', message_id=msg.id) }}" method="post" style="display:inline; margin-left:1em;">
-              <button type="submit" class="btn btn-sm">Delete</button>
+                {{ csrf_token() }}
+                <button type="submit" class="btn btn-sm">Delete</button>
             </form>
           </div>
           <div class="chat-text">{{ msg.text }}</div>
