@@ -22,7 +22,7 @@
           <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
           <a href="{{ url_for('main.my_data') }}">My Data</a>
           <a href="{{ url_for('main.leaderboard') }}">Leaderboard</a>
-          <a href="{{ url_for('auth.logout') }}">Logout</a>
+          <a id="logout-link" href="{{ url_for('auth.logout') }}">Logout</a>
         {% else %}
           <a href="{{ url_for('main.leaderboard') }}">Leaderboard</a>
           <a href="{{ url_for('auth.login') }}">Login</a>
