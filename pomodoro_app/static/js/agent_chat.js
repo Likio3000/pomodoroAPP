@@ -146,6 +146,7 @@ async function sendAgentMessage() {
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: headers,
+            credentials: 'same-origin',
             body: JSON.stringify({
                 prompt: message,
                 dashboard_data: dashboardData,
