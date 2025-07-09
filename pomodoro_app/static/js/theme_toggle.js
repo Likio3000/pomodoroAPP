@@ -6,10 +6,10 @@
   function applyTheme(theme) {
     if (theme === 'dark') {
       document.body.classList.add('dark-theme');
-      toggleBtn.textContent = 'Light Mode';
+      toggleBtn.textContent = '☀️';
     } else {
       document.body.classList.remove('dark-theme');
-      toggleBtn.textContent = 'Dark Mode';
+      toggleBtn.textContent = '🌙';
     }
   }
 

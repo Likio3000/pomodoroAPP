@@ -174,6 +174,8 @@ body.dark-theme {
 }
 .navbar .nav-links a {
   color: #dee2e6; /* Lighter gray for links */
+  font-weight: 600;
+  font-size: 1.1em;
   transition: color 0.2s ease;
 }
 .navbar .nav-links a:hover {
@@ -182,6 +184,16 @@ body.dark-theme {
 }
 .theme-toggle {
   margin-left: 1em;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 1.1em;
+  padding: 0.2em 0.4em;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.theme-toggle:hover {
+  color: #fff;
 }
 
 /* Container */
