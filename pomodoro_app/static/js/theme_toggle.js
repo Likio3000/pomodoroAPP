@@ -22,4 +22,12 @@
     applyTheme(newTheme);
     localStorage.setItem('theme', newTheme);
   });
+
+  const logoutLink = document.getElementById('logout-link');
+  if (logoutLink) {
+    logoutLink.addEventListener('click', () => {
+      sessionStorage.removeItem('pomodoroAgentChatHistory_v1');
+      sessionStorage.removeItem('pomodoroAgentSelected_v1');
+    });
+  }
 })();
