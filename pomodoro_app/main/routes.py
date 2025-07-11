@@ -1,50 +1,40 @@
 # pomodoro_app/main/routes.py
-# Handles user-facing HTML page routes for the main blueprint.
 
 from flask import (
-    Blueprint, render_template, request, jsonify, redirect, url_for, session,
-    current_app, flash
+    Blueprint, render_template, request, jsonify, redirect, url_for,
+    session, current_app, flash, abort
 )
 from flask_login import login_required, current_user
-from sqlalchemy import func # Keep func if used directly for dashboard stats
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta, timezone, date
 
-# Import blueprint object, database instance, limiter, and models
-from . import main # Import the blueprint registered in __init__.py
+# --- app / DB objects ---------------------------------------------------------
+from . import main                           # The blueprint created in __init__.py
 from pomodoro_app import db, limiter
-from pomodoro_app.models import User, PomodoroSession, ActiveTimerState, ChatMessage
+from pomodoro_app.models import (
+    User, PomodoroSession, ActiveTimerState, ChatMessage   # <- NO Message import
+)
 
-# Import constants and helpers needed by these routes specifically
-from .logic import MULTIPLIER_RULES, calculate_current_multiplier, get_active_multiplier_rules # <-- Import new function
+# --- helpers ------------------------------------------------------------------
+from .logic import (
+    MULTIPLIER_RULES, calculate_current_multiplier, get_active_multiplier_rules
+)
 
 # --- HTML Routes ---
 
 @main.route('/')
 @limiter.limit("10 per minute")
 def index():
-    """Handles the root URL. Redirects authenticated users."""
+    """Root page: redirect logged-in users to dashboard or timer."""
     if current_user.is_authenticated:
         try:
-            # Check if an active timer exists for the user
             active_state = db.session.get(ActiveTimerState, current_user.id)
-            if active_state:
-                 current_app.logger.debug(f"User {current_user.id} has active timer state, redirecting to timer page.")
-                 return redirect(url_for('main.timer'))
-            else:
-                 current_app.logger.debug(f"User {current_user.id} has no active timer state, redirecting to dashboard.")
-                 return redirect(url_for('main.dashboard'))
-        except SQLAlchemyError as e:
-             current_app.logger.error(f"Database error checking active timer for user {current_user.id} on index: {e}", exc_info=True)
-             # Fallback to dashboard on DB error during check
-             return redirect(url_for('main.dashboard'))
-        except Exception as e:
-             current_app.logger.error(f"Unexpected error checking active timer for user {current_user.id} on index: {e}", exc_info=True)
-             # Fallback to dashboard on any other error
-             return redirect(url_for('main.dashboard'))
-    # If user is not authenticated, show the landing page
-    return render_template('index.html')
+            return redirect(url_for('main.timer' if active_state else 'main.dashboard'))
+        except Exception:
+            return redirect(url_for('main.dashboard'))
 
+    return render_template('index.html')
 
 @main.route('/timer')
 @login_required
@@ -244,37 +234,35 @@ def leaderboard():
 @main.route('/mydata')
 @login_required
 def my_data():
-    """Display user's stored chat history and provide deletion options."""
-    user_id = current_user.id
+    """Show the user’s stored chat messages."""
     try:
-        messages = (
-            db.session.query(ChatMessage)
-            .filter_by(user_id=user_id)
-            .order_by(ChatMessage.timestamp.desc())
-            .limit(15)
-            .all()
-        )
+        messages = (ChatMessage.query
+                               .filter_by(user_id=current_user.id)
+                               .order_by(ChatMessage.timestamp.desc())
+                               .all())
     except SQLAlchemyError as e:
-        current_app.logger.error(f"MyData: DB error fetching messages for user {user_id}: {e}")
+        current_app.logger.error(f"MyData: DB error for user {current_user.id}: {e}")
         messages = []
+
     return render_template('main/my_data.html', messages=messages)
 
 
 @main.route('/mydata/delete/<int:message_id>', methods=['POST'])
 @login_required
 def delete_message(message_id):
-    """Delete a chat message belonging to the current user."""
-    user_id = current_user.id
+    """Delete a single chat message that belongs to the current user."""
+    msg = ChatMessage.query.get_or_404(message_id)
+
+    if msg.user_id != current_user.id:                # extra safety
+        abort(403)
+
     try:
-        message = ChatMessage.query.filter_by(id=message_id, user_id=user_id).first()
-        if message:
-            db.session.delete(message)
-            db.session.commit()
-            flash('Message deleted.', 'success')
-        else:
-            flash('Message not found.', 'error')
+        db.session.delete(msg)
+        db.session.commit()
+        flash('Message deleted.', 'success')
     except SQLAlchemyError as e:
         db.session.rollback()
-        current_app.logger.error(f"MyData: DB error deleting message {message_id} for user {user_id}: {e}")
-        flash('Database error deleting message.', 'error')
+        current_app.logger.error(f"MyData: DB error deleting msg {message_id}: {e}")
+        flash('Database error; message not deleted.', 'error')
+
     return redirect(url_for('main.my_data'))
