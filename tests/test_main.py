@@ -179,7 +179,7 @@ def test_mydata_requires_login(test_client, init_database):
     assert b'Login' in resp.data
 
 
-def test_mydata_view_and_delete(logged_in_user, clean_db, test_app):
+def test_mydata_view_has_pair_delete_only(logged_in_user, clean_db, test_app):
     from pomodoro_app.models import ChatMessage, User
 
     with test_app.app_context():
@@ -188,18 +188,12 @@ def test_mydata_view_and_delete(logged_in_user, clean_db, test_app):
         msg2 = ChatMessage(user_id=user.id, role='assistant', text='hi')
         db.session.add_all([msg1, msg2])
         db.session.commit()
-        msg1_id = msg1.id
 
     resp = logged_in_user.get(url_for('main.my_data'))
     assert resp.status_code == 200
     assert b'hello' in resp.data
-
-    resp = logged_in_user.post(url_for('main.delete_message', message_id=msg1_id), follow_redirects=True)
-    assert resp.status_code == 200
-    assert b'Message deleted' in resp.data
-
-    with test_app.app_context():
-        assert ChatMessage.query.get(msg1_id) is None
+    assert b'Delete Pair' in resp.data
+    assert b'btn-danger' not in resp.data
 
 
 def test_mydata_delete_pair(logged_in_user, clean_db, test_app):
