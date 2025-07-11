@@ -1,25 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
   <h2 class="dashboard-main-title">My Data</h2>
-  <p>Below is your stored chat history. You can delete individual messages.</p>
+  <p>Below is your stored chat history. Messages are grouped in user/assistant pairs. Use the button on a user message to delete its pair.</p>
 
   {% if messages %}
     <ul class="chat-history">
       {% for msg in messages %}
-        <li class="chat-history-item">
+        <li class="chat-history-item {{ 'user-message' if msg.role == 'user' else 'assistant-message' }}">
           <div>
             <strong>{{ msg.role.title() }}</strong>
             <em>{{ msg.timestamp.isoformat() if msg.timestamp else '' }}</em>
 
-            {# ONE form, ONE token, ONE button #}
-            <form action="{{ url_for('main.delete_message', message_id=msg.id) }}"
-                  method="post"
-                  style="display:inline;margin-left:1em;"
-                  onsubmit="return confirm('Delete this message?');">
-              <!-- hidden CSRF field so Flask-WTF receives it -->
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-            </form>
             {% if msg.role == 'user' %}
             <form action="{{ url_for('main.delete_message_pair', message_id=msg.id) }}"
                   method="post"

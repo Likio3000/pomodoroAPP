@@ -959,3 +959,28 @@ body.dark-theme .leaderboard-table tbody tr:nth-child(2) {
 body.dark-theme .leaderboard-table tbody tr:nth-child(3) {
   background-color: #665040;
 }
+
+/* Chat history pair styling */
+.chat-history-item.user-message {
+  background: #eef6fc;
+  border: 1px solid #cbd5e0;
+  border-radius: 0.5em 0.5em 0 0;
+  padding: 0.5em 1em;
+  margin-top: 1em;
+}
+.chat-history-item.assistant-message {
+  background: #f8f9fa;
+  border: 1px solid #cbd5e0;
+  border-top: 0;
+  border-radius: 0 0 0.5em 0.5em;
+  padding: 0.5em 1em;
+  margin-bottom: 1em;
+}
+body.dark-theme .chat-history-item.user-message {
+  background: #1c1f27;
+  border-color: #343a40;
+}
+body.dark-theme .chat-history-item.assistant-message {
+  background: #222;
+  border-color: #343a40;
+}

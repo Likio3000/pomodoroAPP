@@ -247,26 +247,6 @@ def my_data():
     return render_template('main/my_data.html', messages=messages)
 
 
-@main.route('/mydata/delete/<int:message_id>', methods=['POST'])
-@login_required
-def delete_message(message_id):
-    """Delete a single chat message that belongs to the current user."""
-    msg = ChatMessage.query.get_or_404(message_id)
-
-    if msg.user_id != current_user.id:                # extra safety
-        abort(403)
-
-    try:
-        db.session.delete(msg)
-        db.session.commit()
-        flash('Message deleted.', 'success')
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        current_app.logger.error(f"MyData: DB error deleting msg {message_id}: {e}")
-        flash('Database error; message not deleted.', 'error')
-
-    return redirect(url_for('main.my_data'))
-
 
 @main.route('/mydata/delete_pair/<int:message_id>', methods=['POST'])
 @login_required
