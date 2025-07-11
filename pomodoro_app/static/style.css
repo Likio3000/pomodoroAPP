@@ -858,6 +858,49 @@ body.dark-theme .chat-log .message.ai {
   background-color: #333;
   color: #eee;
 }
+
+/* Dark theme overrides for floating AI assistant popup */
+body.dark-theme #agent-chatbox {
+  background: #1e1e1e;
+  color: #e9e9e9;
+  border-color: #444;
+}
+body.dark-theme #agent-chatbox .agent-chat-header {
+  background: #333;
+  color: #eee;
+  border-bottom-color: #444;
+}
+body.dark-theme #agent-chatbox .agent-chat-log {
+  background: #1e1e1e;
+}
+body.dark-theme #agent-chatbox .agent-message.ai {
+  background: #333;
+  color: #eee;
+}
+body.dark-theme #agent-chatbox .agent-message.user {
+  background: #0056b3;
+}
+body.dark-theme #agent-chatbox .agent-chat-controls,
+body.dark-theme #agent-chatbox .agent-chat-settings {
+  background: #2a2a2a;
+  border-top-color: #444;
+}
+body.dark-theme #agent-chatbox button {
+  background: #444;
+  color: #eee;
+}
+body.dark-theme #agent-chatbox button:hover {
+  background: #666;
+}
+body.dark-theme #agent-chatbox input,
+body.dark-theme #agent-chatbox select {
+  background: #222;
+  color: #e9e9e9;
+  border-color: #555;
+}
+body.dark-theme #agent-chatbox input::placeholder {
+  color: #bbb;
+}
 body.dark-theme .flash.error {
   background: #552020;
   color: #f8d7da;
