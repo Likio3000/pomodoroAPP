@@ -202,6 +202,33 @@ def test_mydata_view_and_delete(logged_in_user, clean_db, test_app):
         assert ChatMessage.query.get(msg1_id) is None
 
 
+def test_mydata_delete_pair(logged_in_user, clean_db, test_app):
+    from pomodoro_app.models import ChatMessage, User
+
+    with test_app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        m1 = ChatMessage(user_id=user.id, role='user', text='q1')
+        m2 = ChatMessage(user_id=user.id, role='assistant', text='a1')
+        m3 = ChatMessage(user_id=user.id, role='user', text='q2')
+        m4 = ChatMessage(user_id=user.id, role='assistant', text='a2')
+        db.session.add_all([m1, m2, m3, m4])
+        db.session.commit()
+        pair_start_id = m1.id
+
+    resp = logged_in_user.post(
+        url_for('main.delete_message_pair', message_id=pair_start_id),
+        follow_redirects=True
+    )
+    assert resp.status_code == 200
+    assert b'Message pair deleted' in resp.data
+
+    with test_app.app_context():
+        assert ChatMessage.query.get(pair_start_id) is None
+        assert ChatMessage.query.filter_by(role='assistant', text='a1').first() is None
+        # Ensure later messages remain
+        assert ChatMessage.query.filter_by(role='user', text='q2').first() is not None
+
+
 def test_mydata_limit(logged_in_user, clean_db, test_app, monkeypatch):
     from pomodoro_app.main import api_routes
 

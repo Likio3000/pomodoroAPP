@@ -266,3 +266,38 @@ def delete_message(message_id):
         flash('Database error; message not deleted.', 'error')
 
     return redirect(url_for('main.my_data'))
+
+
+@main.route('/mydata/delete_pair/<int:message_id>', methods=['POST'])
+@login_required
+def delete_message_pair(message_id):
+    """Delete a user message and the next assistant message."""
+    msg = ChatMessage.query.get_or_404(message_id)
+
+    if msg.user_id != current_user.id:
+        abort(403)
+
+    if msg.role != 'user':
+        flash('Can only delete pairs starting from a user message.', 'error')
+        return redirect(url_for('main.my_data'))
+
+    try:
+        next_msg = (
+            ChatMessage.query
+            .filter(ChatMessage.user_id == current_user.id,
+                    ChatMessage.timestamp > msg.timestamp)
+            .order_by(ChatMessage.timestamp.asc())
+            .first()
+        )
+        if next_msg and next_msg.role == 'assistant':
+            db.session.delete(next_msg)
+        db.session.delete(msg)
+        db.session.commit()
+        flash('Message pair deleted.', 'success')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(
+            f"MyData: DB error deleting pair starting with {message_id}: {e}")
+        flash('Database error; message pair not deleted.', 'error')
+
+    return redirect(url_for('main.my_data'))
