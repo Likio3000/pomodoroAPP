@@ -925,6 +925,17 @@ body.dark-theme .timer-main-title {
 }
 body.dark-theme .multiplier-rules-container h3 { color: #ddd; }
 body.dark-theme .multiplier-rules-table td:nth-child(3) { color: #ddd; }
+
+/* Dark theme styling for active multiplier rows */
+body.dark-theme .multiplier-rules-table tbody tr.active-multiplier-rule {
+  background-color: #2f4032; /* darker green so light text stands out */
+}
+body.dark-theme .multiplier-rules-table tbody tr.active-multiplier-rule td:nth-child(3) {
+  color: #fff; /* brighten details text for contrast */
+}
+body.dark-theme .multiplier-rules-table tbody tr.active-multiplier-rule:hover {
+  background-color: #37533a; /* subtle hover effect */
+}
 body.dark-theme .dashboard-main-title {
   background: linear-gradient(90deg, #2a2a2a 60%, #3a3a3a 100%);
   color: #eee;
