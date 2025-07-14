@@ -964,17 +964,17 @@ body.dark-theme .leaderboard-table tbody tr:nth-child(3) {
 .chat-history-item.user-message {
   background: #eef6fc;
   border: 1px solid #cbd5e0;
-  border-radius: 0.5em 0.5em 0 0;
+  border-radius: 0.5em 0.5em 0.5em 0.5em;
   padding: 0.5em 1em;
-  margin-top: 0;
+  margin-bottom: 1em;
 }
 .chat-history-item.assistant-message {
   background: #f8f9fa;
   border: 1px solid #cbd5e0;
-  border-top: 0;
-  border-radius: 0 0 0.5em 0.5em;
+  border-top: 1px solid #cbd5e0;
+  border-radius: 0.5em 0.5em 0.5em 0.5em;
   padding: 0.5em 1em;
-  margin-bottom: 1em;
+  margin-bottom: 0em;
 }
 body.dark-theme .chat-history-item.user-message {
   background: #1c1f27;
