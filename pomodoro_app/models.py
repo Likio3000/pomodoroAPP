@@ -18,6 +18,15 @@ class User(UserMixin, db.Model):
     daily_streak = db.Column(db.Integer, nullable=False, default=0, server_default='0')
     last_active_date = db.Column(db.Date, nullable=True) # Track last active date for daily streak
 
+    # --- User Preferences ---
+    preferred_work_minutes = db.Column(
+        db.Integer,
+        nullable=False,
+        default=25,
+        server_default='25'
+    )
+    productivity_goal = db.Column(db.String(200), nullable=True)
+
     # Relationship backrefs defined below (for PomodoroSession)
     # sessions backref defined in PomodoroSession model
 
