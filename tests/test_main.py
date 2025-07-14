@@ -196,6 +196,23 @@ def test_mydata_view_has_pair_delete_only(logged_in_user, clean_db, test_app):
     assert b'btn-danger' not in resp.data
 
 
+def test_mydata_messages_order(logged_in_user, clean_db, test_app):
+    """Messages should be displayed with the user message above its assistant response."""
+    from pomodoro_app.models import ChatMessage, User
+
+    with test_app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        m1 = ChatMessage(user_id=user.id, role='user', text='first question')
+        m2 = ChatMessage(user_id=user.id, role='assistant', text='first answer')
+        db.session.add_all([m1, m2])
+        db.session.commit()
+
+    resp = logged_in_user.get(url_for('main.my_data'))
+    assert resp.status_code == 200
+    page = resp.get_data(as_text=True)
+    assert page.index('first question') < page.index('first answer')
+
+
 def test_mydata_delete_pair(logged_in_user, clean_db, test_app):
     from pomodoro_app.models import ChatMessage, User
 
