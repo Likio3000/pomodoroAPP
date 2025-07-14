@@ -20,6 +20,7 @@
         {% if current_user.is_authenticated %}
           <a href="{{ url_for('main.timer') }}">Timer</a>
           <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
+          <a href="{{ url_for('main.settings') }}">Settings</a>
           <a href="{{ url_for('main.my_data') }}">My Data</a>
           <a href="{{ url_for('main.leaderboard') }}">Leaderboard</a>
           <a id="logout-link" href="{{ url_for('auth.logout') }}">Logout</a>

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>User Settings</h2>
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+      {{ form.preferred_work_minutes.label }}<br>
+      {{ form.preferred_work_minutes(class="input") }}
+      {% for error in form.preferred_work_minutes.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+    <div class="form-group">
+      {{ form.productivity_goal.label }}<br>
+      {{ form.productivity_goal(class="input") }}
+      {% for error in form.productivity_goal.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+    {{ form.submit(class="btn") }}
+  </form>
+{% endblock %}

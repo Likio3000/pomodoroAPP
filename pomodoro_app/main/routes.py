@@ -15,6 +15,7 @@ from pomodoro_app import db, limiter
 from pomodoro_app.models import (
     User, PomodoroSession, ActiveTimerState, ChatMessage   # <- NO Message import
 )
+from pomodoro_app.forms import SettingsForm
 
 # --- helpers ------------------------------------------------------------------
 from .logic import (
@@ -281,3 +282,23 @@ def delete_message_pair(message_id):
         flash('Database error; message pair not deleted.', 'error')
 
     return redirect(url_for('main.my_data'))
+
+
+@main.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    """Allow users to update personal productivity preferences."""
+    form = SettingsForm(obj=current_user)
+    if form.validate_on_submit():
+        current_user.preferred_work_minutes = form.preferred_work_minutes.data
+        current_user.productivity_goal = form.productivity_goal.data
+        try:
+            db.session.commit()
+            flash('Settings updated.', 'success')
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            current_app.logger.error(f"Settings: DB error for user {current_user.id}: {e}")
+            flash('Could not update settings.', 'error')
+        return redirect(url_for('main.settings'))
+
+    return render_template('main/settings.html', form=form)

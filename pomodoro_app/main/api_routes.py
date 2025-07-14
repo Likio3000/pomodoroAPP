@@ -594,6 +594,8 @@ The user '{user.name}' (ID: {user.id}) is asking a question. Their current stats
 - Total Points: {user_points}
 - Total Focus Time (all time, minutes): {total_focus_db}
 - Total Pomodoro Sessions Completed (all time): {total_sessions_db}
+- Preferred Work Length: {user.preferred_work_minutes} minutes
+- Productivity Goal: {user.productivity_goal or 'None set'}
 Please answer based solely on these stats and general knowledge about the Pomodoro technique.
 Keep your response positive, concise (1–4 sentences), and use Markdown formatting.
 If the question is unrelated to productivity, politely decline.

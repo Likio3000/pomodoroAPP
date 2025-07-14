@@ -268,3 +268,23 @@ def test_mydata_limit(logged_in_user, clean_db, test_app, monkeypatch):
         from pomodoro_app.models import ChatMessage, User
         user = User.query.filter_by(email='test@example.com').first()
         assert ChatMessage.query.filter_by(user_id=user.id).count() == 15
+
+
+def test_settings_page_requires_login(test_client, init_database):
+    resp = test_client.get(url_for('main.settings'), follow_redirects=True)
+    assert resp.status_code == 200
+    assert b'Login' in resp.data
+
+
+def test_update_settings(logged_in_user, test_app):
+    resp = logged_in_user.post(url_for('main.settings'), data={
+        'preferred_work_minutes': '30',
+        'productivity_goal': 'Write more code',
+        'submit': True
+    }, follow_redirects=True)
+    assert resp.status_code == 200
+    with test_app.app_context():
+        from pomodoro_app.models import User
+        user = User.query.filter_by(email='test@example.com').first()
+        assert user.preferred_work_minutes == 30
+        assert user.productivity_goal == 'Write more code'
