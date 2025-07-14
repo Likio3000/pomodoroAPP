@@ -239,7 +239,7 @@ def my_data():
     try:
         messages = (ChatMessage.query
                                .filter_by(user_id=current_user.id)
-                               .order_by(ChatMessage.timestamp.asc())
+                               .order_by(ChatMessage.timestamp.desc())
                                .all())
     except SQLAlchemyError as e:
         current_app.logger.error(f"MyData: DB error for user {current_user.id}: {e}")
