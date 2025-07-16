@@ -287,11 +287,13 @@ def delete_message_pair(message_id):
 @main.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
-    """Allow users to update personal productivity preferences."""
+    """Edit AI profile and productivity preferences."""
     form = SettingsForm(obj=current_user)
     if form.validate_on_submit():
         current_user.preferred_work_minutes = form.preferred_work_minutes.data
         current_user.productivity_goal = form.productivity_goal.data
+        current_user.daily_focus_goal = form.daily_focus_goal.data
+        current_user.focus_description = form.focus_description.data
         try:
             db.session.commit()
             flash('Settings updated.', 'success')

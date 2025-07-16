@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>User Settings</h2>
+  <h2>AI Profile</h2>
+  <p class="form-explainer">
+    The details below help the AI assistant understand your goals and
+    personalize its guidance.
+  </p>
   <form method="POST">
     {{ form.hidden_tag() }}
     <div class="form-group">
@@ -12,6 +16,16 @@
       {{ form.productivity_goal.label }}<br>
       {{ form.productivity_goal(class="input") }}
       {% for error in form.productivity_goal.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+    <div class="form-group">
+      {{ form.daily_focus_goal.label }}<br>
+      {{ form.daily_focus_goal(class="input") }}
+      {% for error in form.daily_focus_goal.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+    <div class="form-group">
+      {{ form.focus_description.label }}<br>
+      {{ form.focus_description(class="input") }}
+      {% for error in form.focus_description.errors %}<span class="error">{{ error }}</span>{% endfor %}
     </div>
     {{ form.submit(class="btn") }}
   </form>
