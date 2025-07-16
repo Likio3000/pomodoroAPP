@@ -457,28 +457,48 @@ def api_reset_timer():
         return jsonify({'error': 'An unexpected server error occurred during reset.'}), 500
 
 
+@main.route('/api/timer/pause', methods=['POST'])
+@login_required
+@limiter.limit("15 per minute")
+def api_pause_timer():
+    """Records the timestamp when a timer is paused."""
+    user_id = current_user.id
+    now_utc = datetime.now(timezone.utc)
+    current_app.logger.info(f"API Pause: User {user_id} pausing at {now_utc.isoformat()}")
+    try:
+        active_state = db.session.query(ActiveTimerState).filter_by(user_id=user_id).with_for_update().first()
+        if not active_state:
+            current_app.logger.warning(f"API Pause: No active timer state for User {user_id}")
+            return jsonify({'status': 'no_active_state'}), 404
+
+        active_state.pause_start_time = now_utc
+        db.session.commit()
+
+        current_app.logger.debug(
+            f"API Pause: Stored pause_start_time={now_utc.isoformat()} for User {user_id}"
+        )
+        return jsonify({'status': 'pause_recorded'}), 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f"API Pause: Database error for User {user_id}: {e}", exc_info=True)
+        return jsonify({'error': 'Database error occurred during pause.'}), 500
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"API Pause: Unexpected error for User {user_id}: {e}", exc_info=True)
+        return jsonify({'error': 'An unexpected server error occurred during pause.'}), 500
+
+
 @main.route('/api/timer/resume', methods=['POST'])
 @login_required
 @limiter.limit("15 per minute")
 def api_resume_timer():
-    """Adjusts the timer's end time on the server after a client pause."""
-    data = request.get_json()
-    if not data or 'pause_duration_ms' not in data:
-        current_app.logger.warning(f"API Resume: Missing pause_duration_ms from User {current_user.id}")
-        return jsonify({'error': 'Missing pause duration information'}), 400
-
-    try:
-        pause_duration_ms = int(data['pause_duration_ms'])
-        if pause_duration_ms < 0:
-            raise ValueError("Pause duration cannot be negative.")
-    except (ValueError, TypeError):
-        current_app.logger.warning(
-            f"API Resume: Invalid pause_duration_ms from User {current_user.id}: {data.get('pause_duration_ms')}"
-        )
-        return jsonify({'error': 'Invalid pause duration value'}), 400
-
+    """Resumes a paused timer and recalculates its end time on the server."""
+    # Client may optionally send pause_duration_ms but we ignore it to avoid clock drift
     user_id = current_user.id
-    current_app.logger.info(f"API Resume: User {user_id} resuming. Adjusting end time by {pause_duration_ms}ms.")
+    now_utc = datetime.now(timezone.utc)
+    current_app.logger.info(f"API Resume: User {user_id} resuming at {now_utc.isoformat()}")
+
     try:
         # Lock the state row for update
         active_state = db.session.query(ActiveTimerState).filter_by(user_id=user_id).with_for_update().first()
@@ -493,19 +513,35 @@ def api_resume_timer():
             db.session.commit()
             return jsonify({'error': 'Cannot resume timer due to inconsistent server state.'}), 500
 
+        pause_start_time = active_state.pause_start_time
+        if not pause_start_time:
+            current_app.logger.warning(
+                f"API Resume: No pause_start_time stored for User {user_id}. Using existing end_time without adjustment."
+            )
+            new_end_time = active_state.end_time
+            new_end_time_iso = new_end_time.isoformat()
+            return jsonify({'status': 'resume_no_pause_found', 'new_end_time': new_end_time_iso}), 200
+
+        if getattr(pause_start_time, 'tzinfo', None) is None:
+            pause_start_time = pause_start_time.replace(tzinfo=timezone.utc)
         original_end_time = active_state.end_time
-        # Ensure timezone awareness (assume UTC if naive)
         if getattr(original_end_time, 'tzinfo', None) is None:
             original_end_time = original_end_time.replace(tzinfo=timezone.utc)
 
-        # Calculate new end time by adding the pause duration
-        new_end_time = original_end_time + timedelta(milliseconds=pause_duration_ms)
-        active_state.end_time = new_end_time # Update the end time
+        remaining_duration = original_end_time - pause_start_time
+        if remaining_duration.total_seconds() < 0:
+            remaining_duration = timedelta(seconds=0)
+
+        new_end_time = now_utc + remaining_duration
+        active_state.start_time = now_utc
+        active_state.end_time = new_end_time
+        active_state.pause_start_time = None
         db.session.commit()
 
         new_end_time_iso = new_end_time.isoformat()
-        current_app.logger.info(f"API Resume: Updated end time for User {user_id} to {new_end_time_iso}")
-        # Return the *new* end time so the client can sync accurately
+        current_app.logger.info(
+            f"API Resume: Recomputed end time for User {user_id} to {new_end_time_iso} (remaining {remaining_duration})"
+        )
         return jsonify({'status': 'resume_success', 'new_end_time': new_end_time_iso}), 200
 
     except SQLAlchemyError as e:

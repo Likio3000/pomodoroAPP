@@ -62,6 +62,8 @@ class ActiveTimerState(db.Model):
     phase = db.Column(db.String(10), nullable=False) # 'work' or 'break'
     start_time = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     end_time = db.Column(db.DateTime(timezone=True), nullable=False)
+    # Timestamp when a pause started; null if not currently paused
+    pause_start_time = db.Column(db.DateTime(timezone=True), nullable=True)
     work_duration_minutes = db.Column(db.Integer, nullable=False)
     break_duration_minutes = db.Column(db.Integer, nullable=False)
     # +++ Current Multiplier for this active work phase +++

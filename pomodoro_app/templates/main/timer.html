@@ -93,6 +93,7 @@
         complete: "{{ url_for('main.api_complete_phase') }}",
         getState: "{{ url_for('main.api_get_timer_state') }}",
         reset:    "{{ url_for('main.api_reset_timer') }}",
+        pause:    "{{ url_for('main.api_pause_timer') }}",
         resume:   "{{ url_for('main.api_resume_timer') }}"
       },
       initialData: {

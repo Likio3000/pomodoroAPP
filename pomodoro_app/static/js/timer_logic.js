@@ -146,15 +146,19 @@ window.PomodoroLogic = (function() {
         console.log(`Countdown started/resumed for phase: ${phase}. Expected end: ${serverEndTimeUTC || 'N/A'}`);
     }
 
-    function pauseCountdown() {
+    async function pauseCountdown() {
         if (intervalId && (phase === 'work' || phase === 'break')) {
             const phaseBeforePause = phase;
             stopCountdown();
             prePausePhase = phaseBeforePause;
             phase = 'paused';
             pauseStartTime = Date.now();
-            // Save state *after* setting pauseStartTime and remainingSeconds is stable
-            saveState(); // Save includes remainingSeconds at the moment of pause
+
+            if (window.PomodoroAPI && typeof window.PomodoroAPI.sendPauseSignal === 'function') {
+                await window.PomodoroAPI.sendPauseSignal();
+            }
+
+            saveState();
             updateUIDisplays();
             updateButtonStates(false);
             enableInputs(false);
