@@ -8,7 +8,7 @@
     // --- Get Config & Elements ---
     // Load config passed from template (API URLs, initial points/multiplier)
     const config = window.pomodoroConfig || {
-        apiUrls: { start: '/api/timer/start', complete: '/api/timer/complete_phase', getState: '/api/timer/state', reset: '/api/timer/reset' },
+        apiUrls: { start: '/api/timer/start', complete: '/api/timer/complete_phase', getState: '/api/timer/state', reset: '/api/timer/reset', pause: '/api/timer/pause', resume: '/api/timer/resume' },
         initialData: { totalPoints: 0, activeMultiplier: 1.0 }
         // Note: activeState is NO LONGER expected here, fetched via API
     };
@@ -134,9 +134,9 @@
         });
 
         // Pause Button
-        elements.pauseBtn.addEventListener('click', () => {
+        elements.pauseBtn.addEventListener('click', async () => {
              // Button should only be clickable when logic determines timer is running
-             window.PomodoroLogic.pauseCountdown(); // Call Logic module to handle pause
+             await window.PomodoroLogic.pauseCountdown(); // Call Logic module to handle pause
         });
 
         // Reset Button

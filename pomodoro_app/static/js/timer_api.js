@@ -22,6 +22,7 @@ window.PomodoroAPI = (function() {
         complete: '/api/timer/complete_phase',
         getState: '/api/timer/state',
         reset: '/api/timer/reset',
+        pause: '/api/timer/pause',
         resume: '/api/timer/resume'
     };
 
@@ -272,6 +273,48 @@ window.PomodoroAPI = (function() {
         }
     }
 
+    async function sendPauseSignal() {
+        console.log('Sending pause signal to server...');
+        setControlsDisabled(true, 'Pausing');
+        if (!csrfToken) {
+            console.error('Cannot send Pause signal: CSRF token missing.');
+            if (elements.statusMessage) {
+                elements.statusMessage.textContent = 'Error: Missing security token. Please refresh.';
+                elements.statusMessage.classList.add('status-alert');
+            }
+            setControlsDisabled(false);
+            return false;
+        }
+
+        try {
+            const response = await fetch(apiUrls.pause, {
+                method: 'POST',
+                headers: createHeaders(),
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 400 && data.error && data.error.toLowerCase().includes('csrf')) {
+                    throw new Error(data.error + ' Please refresh the page.');
+                }
+                throw new Error(data.error || response.statusText || `Server error ${response.status}`);
+            }
+
+            console.log('Server acknowledged pause signal.', data);
+            return true;
+        } catch (error) {
+            console.error('Error sending pause signal:', error);
+            if (elements.statusMessage) {
+                elements.statusMessage.textContent = `Error pausing: ${error.message || 'Could not sync pause with server.'}`;
+                elements.statusMessage.classList.add('status-alert');
+            }
+            return false;
+        } finally {
+            setControlsDisabled(false);
+        }
+    }
+
     async function sendResumeSignal(pauseDurationMs) {
         console.log(`Sending resume signal to server. Pause duration: ${pauseDurationMs}ms`);
         setControlsDisabled(true, "Resuming");
@@ -338,6 +381,7 @@ window.PomodoroAPI = (function() {
         sendStartSignal: sendStartSignal,
         sendCompleteSignal: sendCompleteSignal,
         sendResetSignal: sendResetSignal,
+        sendPauseSignal: sendPauseSignal,
         sendResumeSignal: sendResumeSignal
     };
 
