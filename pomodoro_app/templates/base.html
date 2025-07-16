@@ -30,10 +30,13 @@
           <a href="{{ url_for('auth.register') }}">Register</a>
         {% endif %}
       </div>
-      <span id="global-timer-display" class="nav-timer"></span>
       <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">🌙</button>
     </div>
   </nav>
+
+  <div class="global-timer-wrapper">
+    <span id="global-timer-display" class="nav-timer"></span>
+  </div>
 
   {# show banner if chat disabled #}
   {% if not chat_enabled %}
