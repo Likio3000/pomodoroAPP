@@ -196,6 +196,14 @@ body.dark-theme {
   color: #fff;
 }
 
+/* Small timer display in navbar */
+.nav-timer {
+  color: #ffec99;
+  font-weight: 600;
+  margin-left: auto;
+  margin-right: 1em;
+}
+
 /* Container */
 .container {
   max-width: 960px;

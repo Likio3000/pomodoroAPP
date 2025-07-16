@@ -30,7 +30,8 @@
           <a href="{{ url_for('auth.register') }}">Register</a>
         {% endif %}
       </div>
-        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">🌙</button>
+      <span id="global-timer-display" class="nav-timer"></span>
+      <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">🌙</button>
     </div>
   </nav>
 
@@ -59,6 +60,16 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </div>
+  <script>
+    window.pomodoroApiUrls = {
+      start: "{{ url_for('main.api_start_timer') }}",
+      complete: "{{ url_for('main.api_complete_phase') }}",
+      getState: "{{ url_for('main.api_get_timer_state') }}",
+      reset: "{{ url_for('main.api_reset_timer') }}",
+      resume: "{{ url_for('main.api_resume_timer') }}"
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/global_timer.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/theme_toggle.js') }}" defer></script>
 </body>
 </html>
