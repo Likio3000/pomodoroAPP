@@ -202,17 +202,5 @@ def update_streaks(user, now_utc):
     # Update timestamp AFTER calculating streak
     user.last_session_timestamp = now_utc
 
-def calculate_phase_points(phase, duration_minutes, multiplier=1.0):
-    """Return points for the completed phase."""
-    points_per_minute = current_app.config.get('POINTS_PER_MINUTE', 10)
-    if not isinstance(points_per_minute, (int, float)) or points_per_minute < 0:
-        current_app.logger.error(
-            f"Invalid POINTS_PER_MINUTE ({points_per_minute}). Using 0 points."
-        )
-        return 0
-
-    effective_multiplier = multiplier if phase == 'work' else 1.0
-    return int(round(duration_minutes * points_per_minute * effective_multiplier))
-
 # Note: No Flask blueprint-specific imports (request, jsonify etc.) are needed here.
 # These functions operate on data passed to them.
