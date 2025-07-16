@@ -83,67 +83,46 @@ window.PomodoroLogic = (function() {
     }
 
 
-    // MODIFIED startCountdown - Now calls API on resume
-    async function startCountdown() { // <<< Make async to await API call
-        if (intervalId) clearInterval(intervalId); // Clear any existing interval
+    async function startCountdown() {
+        if (intervalId) clearInterval(intervalId);
 
-        let runningPhase = phase;
-
-        if (phase === 'idle') {
-            // Start from idle (should only happen after API start call)
-             console.error("startCountdown called while phase is still 'idle'. API flow issue?");
-             if (serverEndTimeUTC && window.PomodoroLogic.phase === 'work') {
-                 runningPhase = 'work'; console.warn("Recovering startCountdown - Assuming 'work'.");
-             } else {
-                 elements.statusMessage.textContent = "Error: Cannot start, state invalid.";
-                 updateButtonStates(false); enableInputs(true); return;
-             }
-        } else if (phase === 'paused') {
-             // --- Handle Resume ---
-             if (pauseStartTime && serverEndTimeUTC) {
-                 const pauseDurationMs = Date.now() - pauseStartTime; // Calculate how long pause lasted
-                 console.log(`Attempting to resume. Calculated pause duration: ${pauseDurationMs}ms`);
-
-                 // --- Call API to update server end time ---
-                 const resumeApiSuccess = await window.PomodoroAPI.sendResumeSignal(pauseDurationMs); // << Await API call
-
-                 if (!resumeApiSuccess) {
-                      console.error("Server resume failed. Keeping timer paused.");
-                      // API module's error handler should have updated status message and buttons
-                      return; // Stop startCountdown if API failed
-                 }
-                 // --- API Success ---
-                 console.log("Server resume successful. Proceeding with client resume.");
-
-                 // API response *might* have updated serverEndTimeUTC via setServerEndTimeUTC.
-                 // If not, we MUST clear pauseStartTime so tick calculation works correctly.
-                 pauseStartTime = null; // Clear pause start time marker AFTER successful API call
-                 runningPhase = prePausePhase || 'work'; // Determine phase to resume ('work' or 'break')
-                 phase = runningPhase; // Set phase back to work/break
-
-             } else {
-                 console.warn("Resuming from pause but pauseStartTime or serverEndTimeUTC missing. Timer might be inaccurate.");
-                 pauseStartTime = null; // Clear marker anyway
-                 runningPhase = prePausePhase || 'work'; // Still attempt to resume phase
-                 phase = runningPhase;
-             }
-             // --- End Resume Handling ---
+        // Running from paused?
+        if (phase === 'paused') {
+            // Resume path (user explicitly paused earlier)
+            if (pauseStartTime && serverEndTimeUTC) {
+                const pauseDurationMs = Date.now() - pauseStartTime;
+                const resumeApiSuccess = await window.PomodoroAPI.sendResumeSignal(pauseDurationMs);
+                if (!resumeApiSuccess) {
+                    console.error("Server resume failed. Keeping timer paused.");
+                    return;
+                }
+                pauseStartTime = null;
+                phase = prePausePhase || 'work';
+                prePausePhase = null;
+            } else {
+                console.warn("Paused state missing data; resuming locally.");
+                phase = prePausePhase || 'work';
+                prePausePhase = null;
+            }
+        } else if (phase === 'idle') {
+            console.error("startCountdown called while phase is 'idle' without server start. Ignoring.");
+            elements.statusMessage.textContent = "Error: Cannot start countdown; server not started.";
+            updateButtonStates(false);
+            enableInputs(true);
+            return;
+        } else if (phase === 'work' || phase === 'break') {
+            // nothing extra; just tick against serverEndTimeUTC
         }
 
-        prePausePhase = null; // Clear pre-pause marker
-
-        // Update display immediately before starting interval
-        tick(); // Calculate remainingSeconds based on current time and potentially adjusted serverEndTimeUTC
-        updateUIDisplays(); // Display the freshly calculated time
-        saveState(); // Save state *after* phase is set and time potentially adjusted
-
-        // Start the interval
+        // proceed with tick loop...
+        tick();
+        updateUIDisplays();
+        saveState();
         intervalId = setInterval(tick, 1000);
-        updateButtonStates(true); // Timer is running (show Pause, Reset)
-        enableInputs(false); // Disable duration inputs
-
-        elements.statusMessage.textContent = `${phase === 'work' ? 'Work' : 'Break'} session started/resumed.`;
-        console.log(`Countdown started/resumed for phase: ${phase}. Expected end: ${serverEndTimeUTC || 'N/A'}`);
+        updateButtonStates(true);
+        enableInputs(false);
+        elements.statusMessage.textContent = `${phase === 'work' ? 'Work' : 'Break'} session running.`;
+        console.log(`Countdown running for phase: ${phase}. Server end: ${serverEndTimeUTC || 'N/A'}`);
     }
 
     async function pauseCountdown() {
@@ -320,17 +299,20 @@ window.PomodoroLogic = (function() {
                 remainingSeconds = localState.remainingSeconds; pauseStartTime = localState.pauseStartTime;
                 serverEndTimeUTC = localState.serverEndTimeUTC; // Use the matching end time
             } else {
-                 if (localState && localState.phase === 'paused') { console.warn(`Server active (${serverState.phase}), but ignoring misaligned/invalid local PAUSED state. Forcing pause now.`); }
-                 else { console.warn(`Server active (${serverState.phase}), but no valid PAUSED state found locally. Forcing pause now.`); }
-                stateSource = 'server_forced_pause';
-                phase = serverState.phase; workDurationMinutes = serverState.work_duration_minutes || workDurationMinutes;
-                breakDurationMinutes = serverState.break_duration_minutes || breakDurationMinutes; currentMultiplier = serverState.current_multiplier || currentMultiplier;
-                serverEndTimeUTC = serverTargetEndTime;
-                const now = Date.now(); const endTimeMs = new Date(serverEndTimeUTC).getTime();
+                // Server is authoritative; sync into a *running* state (no forced pause).
+                stateSource = 'server_running_sync';
+                phase = serverState.phase;
+                workDurationMinutes  = serverState.work_duration_minutes  || workDurationMinutes;
+                breakDurationMinutes = serverState.break_duration_minutes || breakDurationMinutes;
+                currentMultiplier    = serverState.current_multiplier     || currentMultiplier;
+                serverEndTimeUTC     = serverState.end_time;
+                const now = Date.now();
+                const endTimeMs = new Date(serverEndTimeUTC).getTime();
                 remainingSeconds = Math.max(0, Math.floor((endTimeMs - now) / 1000));
-                console.log(`Calculated remaining seconds for forced pause: ${remainingSeconds}s`);
-                prePausePhase = phase; phase = 'paused'; pauseStartTime = Date.now();
-                localStorage.removeItem(LS_KEY); saveState();
+                prePausePhase = null;
+                pauseStartTime = null;
+                // We don't persist a paused state to localStorage here; the server is source of truth.
+                localStorage.removeItem(LS_KEY);
             }
         } else {
              if (serverState && serverState.active && !serverState.end_time) { console.error("Server state reported active but missing end_time! Resetting client to idle."); }
@@ -346,9 +328,28 @@ window.PomodoroLogic = (function() {
         if(elements.breakInput) elements.breakInput.value = (phase === 'idle') ? (parseInt(elements.breakInput.value) || 5) : breakDurationMinutes;
         updateUIDisplays();
 
-        if (phase === 'paused') { updateButtonStates(false); enableInputs(false); elements.statusMessage.textContent = `Loaded paused ${prePausePhase || '?'} session. Press Resume.`; }
-        else if (phase === 'idle') { updateButtonStates(false); enableInputs(true); if (!elements.statusMessage.textContent.startsWith("Error")) { elements.statusMessage.textContent = 'Set durations and click Start.'; } }
-        else { console.error("State loaded into unexpected final running phase:", phase, "Attempting recovery reset."); resetTimer(true); }
+        if (phase === 'work' || phase === 'break') {
+            updateButtonStates(true);    // show Pause / Reset
+            enableInputs(false);
+            elements.statusMessage.textContent = `Synced to active ${phase} session.`;
+            // Kick off countdown immediately.
+            // Delay start to let DOM settle.
+            setTimeout(() => { window.PomodoroLogic.startCountdown(); }, 50);
+        } else if (phase === 'idle') {
+            updateButtonStates(false);
+            enableInputs(true);
+            if (!elements.statusMessage.textContent.startsWith("Error")) {
+                elements.statusMessage.textContent = 'Set durations and click Start.';
+            }
+        } else if (phase === 'paused') {
+            // Should only happen if user *explicitly* paused in this session.
+            updateButtonStates(false);
+            enableInputs(false);
+            elements.statusMessage.textContent = `Loaded paused ${prePausePhase || '?'} session. Press Resume.`;
+        } else {
+            console.warn("Unexpected phase on load; resetting.");
+            resetTimer(true);
+        }
         console.log(`Logic state loaded. Final phase: ${phase}, Source: ${stateSource}`);
     }
 

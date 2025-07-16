@@ -44,23 +44,35 @@
   async function handleCompletion(){
     if(!csrf) return;
     try{
-      const resp = await fetch(apiUrls.complete, {
-        method:'POST',
-        headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
-        credentials:'same-origin',
-        body: JSON.stringify({phase_completed: phase})
-      });
-      const data = await resp.json();
-      if(resp.ok){
-        if(data.status === 'break_started' || data.status === 'work_started'){
-          phase = data.status === 'break_started' ? 'break' : 'work';
-          endTimeMs = new Date(data.end_time).getTime();
+      const stateResp = await fetch(apiUrls.getState, {credentials:'same-origin'});
+      const stateData = await stateResp.json();
+      if(stateResp.ok && stateData.active && stateData.phase === phase){
+        const endMs = new Date(stateData.end_time).getTime();
+        if(Date.now() >= endMs){
+          const resp = await fetch(apiUrls.complete, {
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+            credentials:'same-origin',
+            body: JSON.stringify({phase_completed: phase})
+          });
+          const data = await resp.json();
+          if(resp.ok && (data.status === 'break_started' || data.status === 'work_started')){
+            phase = data.status === 'break_started' ? 'break' : 'work';
+            endTimeMs = new Date(data.end_time).getTime();
+            startTicker();
+            return;
+          }
+          phase = 'idle';
+          display.textContent = '';
+        } else {
+          phase = stateData.phase;
+          endTimeMs = endMs;
           startTicker();
-          return;
         }
+      } else {
+        phase = 'idle';
+        display.textContent = '';
       }
-      phase = 'idle';
-      display.textContent = '';
     }catch(e){
       console.error('Global timer completion error', e);
     }

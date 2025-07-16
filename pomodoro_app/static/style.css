@@ -205,6 +205,11 @@ body.dark-theme {
   margin-right: 1em;
 }
 
+.global-timer-wrapper {
+  text-align: center;
+  margin-top: 0.3em;
+}
+
 /* Container */
 .container {
   max-width: 960px;
