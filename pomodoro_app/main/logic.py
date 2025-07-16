@@ -7,7 +7,7 @@ from pomodoro_app.models import User, PomodoroSession, ActiveTimerState
 
 # --- Constants ---
 MULTIPLIER_RULES = [
-    {'id': 'base',          'condition': 'Base Rate (Work)',        'bonus': 0.0, 'details': 'Active during focused work.'},
+    {'id': 'base',          'condition': 'Base Rate (Work + Break)', 'bonus': 0.0, 'details': 'Applies to work AND the immediately following break.'},
     # --- New duration milestones ---
     {'id': 'focus25',       'condition': 'Work Block > 25 Min',     'bonus': 0.1, 'details': 'Complete >25 mins in one work session.'},
     {'id': 'focus45',       'condition': 'Work Block > 45 Min',     'bonus': 0.2, 'details': 'Complete >45 mins in one work session.'},
