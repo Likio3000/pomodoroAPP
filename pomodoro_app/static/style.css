@@ -171,6 +171,7 @@ body.dark-theme {
 .navbar .nav-links {
     display: flex;
     gap: 1.2em; /* Slightly more space */
+    margin-left: auto; /* push links to the right */
 }
 .navbar .nav-links a {
   color: #dee2e6; /* Lighter gray for links */
@@ -200,7 +201,7 @@ body.dark-theme {
 .nav-timer {
   color: #ffec99;
   font-weight: 600;
-  margin-left: auto;
+  margin-left: 1em;
   margin-right: 1em;
 }
 
