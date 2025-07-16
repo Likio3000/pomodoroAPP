@@ -19,7 +19,10 @@ from pomodoro_app.forms import SettingsForm
 
 # --- helpers ------------------------------------------------------------------
 from .logic import (
-    MULTIPLIER_RULES, calculate_current_multiplier, get_active_multiplier_rules
+    MULTIPLIER_RULES,
+    calculate_current_multiplier,
+    get_active_multiplier_rules,
+    calculate_phase_points,
 )
 
 # --- HTML Routes ---
@@ -86,8 +89,8 @@ def timer():
          total_points = getattr(user, 'total_points', 0)
          # Keep active_rule_ids empty on error
 
-    # Get points per minute from config
-    points_per_min_config = current_app.config.get('POINTS_PER_MINUTE', 10)
+    # Base points earned per minute (shared helper for consistency)
+    points_per_min_config = calculate_phase_points('work', 1, 1.0)
 
     return render_template(
         'main/timer.html',

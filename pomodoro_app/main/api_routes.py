@@ -29,7 +29,11 @@ from pomodoro_app import db, limiter
 from pomodoro_app.models import User, PomodoroSession, ActiveTimerState, ChatMessage
 
 # Import helper functions from logic.py
-from .logic import calculate_current_multiplier, update_streaks
+from .logic import (
+    calculate_current_multiplier,
+    update_streaks,
+    calculate_phase_points,
+)
 
 # --- OpenAI Client (initialized at module level) ---
 openai_client = None
@@ -223,9 +227,9 @@ def api_start_timer():
 def api_complete_phase():
     """
     Completes a phase of the timer.
-    Calculates and awards points based on the planned duration,
-    updates user stats and streaks, and transitions the timer state.
-    Automatically starts the next work session after a break.
+    Calculates points via :func:`calculate_phase_points`, updates user stats
+    and streaks, and transitions the timer state. Automatically starts the next
+    work session after a break.
     """
     data = request.get_json()
     if not data or 'phase_completed' not in data:
@@ -235,7 +239,6 @@ def api_complete_phase():
     phase_completed = data.get('phase_completed')
     user_id = current_user.id
     now_utc = datetime.now(timezone.utc)
-    points_per_minute = current_app.config.get('POINTS_PER_MINUTE', 10)
 
     try:
         # Use with_for_update() for locking during the read-modify-write cycle
@@ -298,13 +301,10 @@ def api_complete_phase():
             current_app.logger.info(
                 f"API Complete: User {user_id} completed WORK phase (duration: {planned_work_duration} min)."
             )
-            # Use the multiplier stored when the work phase started
             final_multiplier = getattr(server_state, 'current_multiplier', 1.0)
-            if isinstance(points_per_minute, (int, float)) and points_per_minute >= 0:
-                points_earned_this_phase = int(round(planned_work_duration * points_per_minute * final_multiplier))
-            else:
-                current_app.logger.error(f"API Complete: Invalid POINTS_PER_MINUTE ({points_per_minute}). Using 0 points.")
-                points_earned_this_phase = 0
+            points_earned_this_phase = calculate_phase_points(
+                'work', planned_work_duration, final_multiplier
+            )
 
             new_total_points += points_earned_this_phase
             current_app.logger.info(
@@ -352,11 +352,7 @@ def api_complete_phase():
             current_app.logger.info(
                 f"API Complete: User {user_id} completed BREAK phase (duration: {planned_break_duration} min)."
             )
-            # Optional: Award points for break (e.g., half rate)
-            if isinstance(points_per_minute, (int, float)) and points_per_minute >= 0:
-                 points_earned_this_phase = int(round(planned_break_duration * points_per_minute * 0.5)) # Example: 0.5x points
-            else:
-                points_earned_this_phase = 0
+            points_earned_this_phase = calculate_phase_points('break', planned_break_duration)
 
             new_total_points += points_earned_this_phase
             current_app.logger.info(
