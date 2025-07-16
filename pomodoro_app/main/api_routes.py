@@ -29,7 +29,11 @@ from pomodoro_app import db, limiter
 from pomodoro_app.models import User, PomodoroSession, ActiveTimerState, ChatMessage
 
 # Import helper functions from logic.py
-from .logic import calculate_current_multiplier, update_streaks
+from .logic import (
+    calculate_current_multiplier,
+    update_streaks,
+    MULTIPLIER_RULES,
+)
 
 # --- OpenAI Client (initialized at module level) ---
 openai_client = None
@@ -632,6 +636,13 @@ def api_chat():
 
     # --- Construct Context ---
     # Use fresh data fetched from DB where possible
+    multiplier_lines = [
+        f"- {rule['condition']}: +{rule['bonus']}"
+        for rule in MULTIPLIER_RULES
+        if rule.get('id') != 'base'
+    ]
+    multiplier_text = "Multipliers (additive to the base 1.0 rate):\n" + "\n".join(multiplier_lines)
+
     context = f"""
 {agent_persona}
 The user '{user.name}' (ID: {user.id}) is asking a question. Their current stats are:
@@ -640,6 +651,7 @@ The user '{user.name}' (ID: {user.id}) is asking a question. Their current stats
 - Total Pomodoro Sessions Completed (all time): {total_sessions_db}
 - Preferred Work Length: {user.preferred_work_minutes} minutes
 - Productivity Goal: {user.productivity_goal or 'None set'}
+{multiplier_text}
 Please answer based solely on these stats and general knowledge about the Pomodoro technique.
 Keep your response positive, concise (1–4 sentences), and use Markdown formatting.
 If the question is unrelated to productivity, politely decline.
