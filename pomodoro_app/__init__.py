@@ -180,7 +180,8 @@ def create_app(config_name=None):
             'chat_enabled': app.config.get('FEATURE_CHAT_ENABLED', False)
         }
 
-    # Register CLI commands for managing agent personas
-    from .cli import personas as personas_cli
+    # Register CLI commands
+    from .cli import personas as personas_cli, secrets as secrets_cli
     app.cli.add_command(personas_cli)
+    app.cli.add_command(secrets_cli)
     return app

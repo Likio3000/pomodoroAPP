@@ -62,6 +62,9 @@ Installation:
    export FLASK_APP=pomodoro_app:create_app
    export FLASK_ENV=development
    export SECRET_KEY='your-very-secret-flask-key' # IMPORTANT: Set a strong secret key
+   # Never deploy with the sample SECRET_KEY.
+   # Generate at least 32 random bytes using:
+   #   flask secrets generate-key
    export DATABASE_URL='sqlite:///pomodoro.db' # Or your preferred DB connection string
    export OPENAI_API_KEY='your_openai_api_key_here' # Add your OpenAI key (required for chat feature)
 
