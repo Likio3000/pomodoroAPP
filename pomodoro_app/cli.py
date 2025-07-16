@@ -1,4 +1,6 @@
+import os
 import json
+import base64
 import click
 from flask.cli import with_appcontext
 from .agent_config import load_personas, save_personas
@@ -29,3 +31,18 @@ def set_persona(name, prompt, voice):
     data[name] = {'prompt': prompt, 'voice': voice}
     save_personas(data)
     click.echo(f"Persona '{name}' saved.")
+
+
+@click.group()
+def secrets():
+    """Secret key utilities."""
+    pass
+
+
+@secrets.command('generate-key')
+@click.option('--bytes', 'num_bytes', default=32, show_default=True,
+              help='Number of random bytes to use')
+def generate_key(num_bytes):
+    """Generate a base64-encoded SECRET_KEY."""
+    key = base64.b64encode(os.urandom(num_bytes)).decode()
+    click.echo(key)
