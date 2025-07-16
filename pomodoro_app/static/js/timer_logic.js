@@ -232,24 +232,10 @@ window.PomodoroLogic = (function() {
 
     function updateUIDisplays() {
         if (!elements.timerDisplay) return;
-        let displayPhaseLabel = 'Idle';
-        let multiplierContext = '(Next Session)';
-        let displayMultiplier = currentMultiplier;
-
+        let displayPhaseLabel = 'Idle'; let multiplierContext = '(Next Session)'; let displayMultiplier = currentMultiplier;
         const phaseForDisplay = (phase === 'paused') ? prePausePhase : phase;
-        switch (phaseForDisplay) {
-            case 'work':
-                displayPhaseLabel = 'Work';
-                multiplierContext = '(Active)';
-                break;
-            case 'break':
-                displayPhaseLabel = 'Break';
-                // Breaks inherit the multiplier from the immediately preceding work session.
-                multiplierContext = '(Inherited)';
-                // displayMultiplier already equals currentMultiplier; keep it.
-                break;
-        }
-        if (phase === 'paused') { displayPhaseLabel += ' (Paused)'; multiplierContext = '(Paused)'; }
+        switch(phaseForDisplay) { case 'work': displayPhaseLabel = 'Work'; multiplierContext = ''; break; case 'break': displayPhaseLabel = 'Break'; multiplierContext = '(Break Rate)'; displayMultiplier = 1.0; break; }
+        if (phase === 'paused') { displayPhaseLabel += ' (Paused)'; multiplierContext = '(Paused)'; if (prePausePhase === 'break') displayMultiplier = 1.0; }
 
         elements.timerDisplay.textContent = formatTime(remainingSeconds);
         document.title = `${formatTime(remainingSeconds)} - ${displayPhaseLabel} - Pomodoro`;

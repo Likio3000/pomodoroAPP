@@ -149,15 +149,9 @@ window.PomodoroAPI = (function() {
              window.PomodoroLogic.setServerEndTimeUTC(null); // Clear old end time initially
 
              if (data.status === 'break_started') {
-                 // Enter BREAK phase. Breaks *inherit the multiplier from the preceding WORK*.
                  window.PomodoroLogic.setPhase('break');
                  window.PomodoroLogic.setPrePausePhase(null);
-                 if (typeof data.active_multiplier === 'number') {
-                     window.PomodoroLogic.setCurrentMultiplier(data.active_multiplier);
-                 } else {
-                     // Fallback: keep whatever multiplier Logic currently has (from work completion)
-                     console.warn('break_started response missing active_multiplier; preserving previous multiplier.');
-                 }
+                 window.PomodoroLogic.setCurrentMultiplier(1.0); // Breaks have 1x multiplier
                  if (data.end_time) {
                     window.PomodoroLogic.setServerEndTimeUTC(data.end_time);
                     const endTimeMs = new Date(data.end_time).getTime();
