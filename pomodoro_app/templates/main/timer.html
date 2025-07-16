@@ -35,16 +35,7 @@
         <span>Active Multiplier:</span>
         <span id="active-multiplier-display" class="active-multiplier">
             {{ active_multiplier | round(1) }}x
-            {# Use Jinja logic to determine context label based on active_rule_ids #}
-            <span class="multiplier-context">
-                {% if 'base' in active_rule_ids and active_rule_ids | length > 1 %}
-                    (Current Session) {# Active work session with bonuses #}
-                {% elif 'base' in active_rule_ids %}
-                    (Current Session) {# Active work session, no bonuses #}
-                {% else %}
-                    (Next Session) {# Idle or break phase #}
-                {% endif %}
-            </span>
+            <span class="multiplier-context">(Server Synced)</span>
         </span>
     </div>
 
@@ -52,7 +43,10 @@
     <!-- Multiplier Explanation Table -->
     <div class="multiplier-rules-container">
         <h3>Multiplier Rules</h3>
-        <p>Earn bonuses for consistency and focus during <strong>Work</strong> phases. Base rate is {{ config.get('POINTS_PER_MINUTE', 10) }} points/minute for Work & Break.</p>
+        <p>
+          Earn bonuses for consistency and focus during <strong>Work</strong> phases.
+          <strong>Breaks also earn points</strong> — at the same base rate of {{ config.get('POINTS_PER_MINUTE', 10) }} points/minute, and they <em>inherit the multiplier from the Work session that preceded them</em>.
+        </p>
         <table class="multiplier-rules-table">
             <thead>
                 <tr>
@@ -80,7 +74,7 @@
                 {% endfor %}
             </tbody>
         </table>
-        <p><em>Note: Bonuses stack additively.</em></p>
+        <p><em>Note: Bonuses stack additively. Break points are awarded when the break ends, using the multiplier from the prior work block.</em></p>
     </div>
 
   </div> {# End of timer-component div #}

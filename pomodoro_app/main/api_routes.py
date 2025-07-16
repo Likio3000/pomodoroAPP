@@ -340,27 +340,34 @@ def api_complete_phase():
             server_state.phase = 'break'
             server_state.start_time = now_utc
             server_state.end_time = break_end_time_utc
-            server_state.current_multiplier = 1.0 # Reset multiplier for break
+            # *** IMPORTANT: Preserve the multiplier that applied to the WORK we just completed. ***
+            # Breaks inherit that multiplier when points are awarded at break completion.
+            server_state.current_multiplier = final_multiplier
             current_app.logger.debug(
-                f"API Complete: Timer state transitioned to BREAK for User {user_id}, ending at {break_end_time_utc.isoformat()}."
+                f"API Complete: Timer state transitioned to BREAK for User {user_id}, ending at {break_end_time_utc.isoformat()}. Inherited multiplier={final_multiplier:.2f}."
             )
             next_phase_status = 'break_started'
             response_payload['end_time'] = break_end_time_utc.isoformat() # Send break end time
+            # Send multiplier so client display stays in sync during break.
+            response_payload['active_multiplier'] = final_multiplier
+
+            # NOTE: Points for the break will be awarded when the user (or auto-complete) ends the break phase.
 
         elif phase_completed == 'break':
             planned_break_duration = server_state.break_duration_minutes
             current_app.logger.info(
                 f"API Complete: User {user_id} completed BREAK phase (duration: {planned_break_duration} min)."
             )
-            # Optional: Award points for break (e.g., half rate)
+            # *** CHANGED: Award full rate × the multiplier from the *preceding work* phase. ***
+            inherited_multiplier = getattr(server_state, 'current_multiplier', 1.0)
             if isinstance(points_per_minute, (int, float)) and points_per_minute >= 0:
-                 points_earned_this_phase = int(round(planned_break_duration * points_per_minute * 0.5)) # Example: 0.5x points
+                 points_earned_this_phase = int(round(planned_break_duration * points_per_minute * inherited_multiplier))
             else:
-                points_earned_this_phase = 0
+                 points_earned_this_phase = 0
 
             new_total_points += points_earned_this_phase
             current_app.logger.info(
-                 f"API Complete: User {user_id} earned {points_earned_this_phase} points for break. Total now: {new_total_points}"
+                 f"API Complete: User {user_id} earned {points_earned_this_phase} points for break (Inherited mult={inherited_multiplier:.2f}). Total now: {new_total_points}"
             )
             user.total_points = new_total_points
 
@@ -371,6 +378,7 @@ def api_complete_phase():
             next_multiplier = calculate_current_multiplier(user, work_minutes, server_state.break_duration_minutes)
             work_end_time_utc = now_utc + timedelta(minutes=work_minutes)
 
+            # Transition into NEW work phase with freshly computed multiplier.
             server_state.phase = 'work'
             server_state.start_time = now_utc
             server_state.end_time = work_end_time_utc
