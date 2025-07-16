@@ -69,10 +69,12 @@
       complete: "{{ url_for('main.api_complete_phase') }}",
       getState: "{{ url_for('main.api_get_timer_state') }}",
       reset: "{{ url_for('main.api_reset_timer') }}",
+      pause: "{{ url_for('main.api_pause_timer') }}",
       resume: "{{ url_for('main.api_resume_timer') }}"
     };
   </script>
   <script src="{{ url_for('static', filename='js/global_timer.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/global_timer_widget.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/theme_toggle.js') }}" defer></script>
 </body>
 </html>
