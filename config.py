@@ -1,5 +1,7 @@
 # config.py
 import os
+import logging
+from urllib.parse import urlparse, urlunparse
 from dotenv import load_dotenv
 
 # Load environment variables from .env file if it exists
@@ -7,6 +9,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 dotenv_path = os.path.join(basedir, '.env')
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path)
+
+# Module-level logger
+logger = logging.getLogger(__name__)
 
 class Config:
     """Base configuration."""
@@ -58,6 +63,18 @@ class Config:
         #     raise RuntimeError(f"'{var_name}' must be at least 16 characters long.")
         return value # Return the value if it exists
 
+    @staticmethod
+    def _mask_url_credentials(url: str) -> str:
+        """Return the URL with any user credentials replaced with ***."""
+        parsed = urlparse(url)
+        if parsed.username or parsed.password:
+            # Rebuild netloc without credentials
+            netloc = parsed.hostname or ''
+            if parsed.port:
+                netloc += f':{parsed.port}'
+            parsed = parsed._replace(netloc=netloc)
+        return urlunparse(parsed)
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""
@@ -85,27 +102,27 @@ class ProductionConfig(Config):
     # +++ MODIFIED: Fail-fast checks + Redis configuration in __init__ +++
     def __init__(self):
         super().__init__()
-        print(" * Applying production config checks...")
+        logger.info("Applying production config checks...")
         # Ensure required variables are set in the environment for production
-        required_vars = ["SECRET_KEY", "DATABASE_URL", "REDIS_URL"] # <-- Added REDIS_URL
+        required_vars = ["SECRET_KEY", "DATABASE_URL", "REDIS_URL"]
         validated_vars = {}
         for req in required_vars:
-            validated_vars[req] = self._assert(req) # Use the helper and store validated value
+            validated_vars[req] = self._assert(req)
 
         # --- Set the Redis URL specifically for production ---
         # Retrieve the validated REDIS_URL environment variable
         redis_url = validated_vars["REDIS_URL"]
+        parsed = urlparse(redis_url)
+        if parsed.scheme != "redis" or not parsed.hostname:
+            raise RuntimeError("REDIS_URL must be a valid redis:// URI with host")
         # Set the Flask-Limiter config key, overriding the base Config default
         self.RATELIMIT_STORAGE_URI = redis_url
-        # Shorten URL for logging if it's long
-        log_redis_url = redis_url[:20] + '...' if len(redis_url) > 20 else redis_url
-        print(f"   - Rate limit storage URI set to Redis: {log_redis_url}")
+        masked_url = self._mask_url_credentials(redis_url)
+        short_url = masked_url[:20] + "..." if len(masked_url) > 20 else masked_url
+        logger.info("Rate limit storage URI set to Redis: %s", short_url)
 
         # Optionally, you could perform a basic check on the Redis URL format here
-        if not redis_url.startswith('redis://'):
-             print(" ! WARNING: REDIS_URL does not start with redis://. Ensure it's a valid Redis connection URI.")
-
-        print(" * Production config checks passed.")
+        logger.info("Production config checks passed.")
 
 
 class TestingConfig(Config):
