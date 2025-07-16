@@ -29,4 +29,9 @@
   {% else %}
     <p>No chat history stored.</p>
   {% endif %}
+
+  <!-- AI Assistant Chat Widget -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script src="{{ url_for('static', filename='js/agent_chat.js') }}" defer></script>
 {% endblock %}
