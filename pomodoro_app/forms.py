@@ -1,7 +1,7 @@
 # pomodoro_app/forms.py
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, IntegerField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange
+from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, Optional
 
 class RegistrationForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(min=2, max=100)])
@@ -25,5 +25,13 @@ class SettingsForm(FlaskForm):
     productivity_goal = StringField(
         'Productivity Goal',
         validators=[Length(max=200)]
+    )
+    daily_focus_goal = IntegerField(
+        'Daily Focus Goal (minutes)',
+        validators=[Optional(), NumberRange(min=1, max=1440)]
+    )
+    focus_description = StringField(
+        'Focus Description',
+        validators=[Optional(), Length(max=200)]
     )
     submit = SubmitField('Save Settings')

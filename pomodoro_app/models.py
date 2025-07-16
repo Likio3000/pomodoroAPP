@@ -26,6 +26,8 @@ class User(UserMixin, db.Model):
         server_default='25'
     )
     productivity_goal = db.Column(db.String(200), nullable=True)
+    daily_focus_goal = db.Column(db.Integer, nullable=True)
+    focus_description = db.Column(db.String(200), nullable=True)
 
     # Relationship backrefs defined below (for PomodoroSession)
     # sessions backref defined in PomodoroSession model

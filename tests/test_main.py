@@ -297,6 +297,8 @@ def test_update_settings(logged_in_user, test_app):
     resp = logged_in_user.post(url_for('main.settings'), data={
         'preferred_work_minutes': '30',
         'productivity_goal': 'Write more code',
+        'daily_focus_goal': '120',
+        'focus_description': 'Study Python',
         'submit': True
     }, follow_redirects=True)
     assert resp.status_code == 200
@@ -305,3 +307,5 @@ def test_update_settings(logged_in_user, test_app):
         user = User.query.filter_by(email='test@example.com').first()
         assert user.preferred_work_minutes == 30
         assert user.productivity_goal == 'Write more code'
+        assert user.daily_focus_goal == 120
+        assert user.focus_description == 'Study Python'
