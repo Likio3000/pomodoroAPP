@@ -1,7 +1,7 @@
 # config.py
 import os
 import logging
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 from dotenv import load_dotenv
 
 # Load environment variables from .env file if it exists
@@ -65,14 +65,25 @@ class Config:
 
     @staticmethod
     def _mask_url_credentials(url: str) -> str:
-        """Return the URL with any user credentials replaced with ***."""
+        """Return the URL with user credentials and password-like query params masked."""
         parsed = urlparse(url)
+
+        # Remove any username/password from the netloc
         if parsed.username or parsed.password:
-            # Rebuild netloc without credentials
             netloc = parsed.hostname or ''
             if parsed.port:
                 netloc += f':{parsed.port}'
             parsed = parsed._replace(netloc=netloc)
+
+        # Sanitize query string parameters
+        if parsed.query:
+            qparams = parse_qs(parsed.query, keep_blank_values=True)
+            for key in list(qparams.keys()):
+                if key.lower() in {'password', 'pass', 'pwd'}:
+                    qparams[key] = ['***'] * len(qparams[key])
+            sanitized_query = urlencode(qparams, doseq=True)
+            parsed = parsed._replace(query=sanitized_query)
+
         return urlunparse(parsed)
 
 
