@@ -22,6 +22,7 @@ const AGENTS = {
 // --- STORAGE KEYS ---
 const CHAT_HISTORY_KEY = 'pomodoroAgentChatHistory_v1'; // Versioned chat history key
 const AGENT_SELECTION_KEY = 'pomodoroAgentSelected_v1'; // Versioned key for selected agent
+const CHAT_COLLAPSE_KEY = 'agentChatCollapsed_v1'; // Persistent collapsed state
 
 let chatHistory = []; // In-memory representation of the history
 
@@ -33,7 +34,11 @@ function createAgentChatBox() {
     chatBox.id = 'agent-chatbox';
     // Simplified HTML - no inline notice needed here anymore
     chatBox.innerHTML = `
-        <div class="agent-chat-header">AI Assistant <span id="agent-status" aria-live="polite"></span></div>
+        <div id="agent-chat-header" class="agent-chat-header" tabindex="0" role="button" aria-expanded="true">
+            AI Assistant <span id="agent-status" aria-live="polite"></span>
+            <span aria-hidden="true" id="agent-chat-toggle">–</span>
+        </div>
+        <div id="agent-chat-body">
         <div id="agent-chat-log" class="agent-chat-log" aria-live="polite" aria-atomic="false"></div>
         <div class="agent-chat-controls agent-chat-controls-col">
             <div class="agent-chat-row">
@@ -51,11 +56,44 @@ function createAgentChatBox() {
         <div class="agent-chat-settings">
             <label for="tts-toggle"><input type="checkbox" id="tts-toggle"> Enable TTS</label>
         </div>
+        </div>
         <audio id="agent-chat-audio" style="display:none;"></audio>
     `;
 
     document.body.appendChild(chatBox);
+
+    const collapsed = localStorage.getItem(CHAT_COLLAPSE_KEY) === '1';
+    setCollapsed(collapsed);
+
+    const header = document.getElementById('agent-chat-header');
+    if (header) {
+        header.addEventListener('click', toggleCollapsed);
+        header.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleCollapsed(); }});
+    }
+
     console.log("Agent chatbox created (UI always enabled).");
+}
+
+function setCollapsed(collapsed) {
+    const box = document.getElementById('agent-chatbox');
+    const toggle = document.getElementById('agent-chat-toggle');
+    if (!box) return;
+    if (collapsed) {
+        box.classList.add('agent-chat-collapsed');
+        if (toggle) toggle.textContent = '+';
+        box.setAttribute('aria-expanded', 'false');
+        localStorage.setItem(CHAT_COLLAPSE_KEY, '1');
+    } else {
+        box.classList.remove('agent-chat-collapsed');
+        if (toggle) toggle.textContent = '–';
+        box.setAttribute('aria-expanded', 'true');
+        localStorage.setItem(CHAT_COLLAPSE_KEY, '0');
+    }
+}
+
+function toggleCollapsed() {
+    const box = document.getElementById('agent-chatbox');
+    setCollapsed(!box.classList.contains('agent-chat-collapsed'));
 }
 
 // --- Chat Logic & History Management ---
@@ -314,6 +352,13 @@ if (!document.getElementById('agent-chat-styles')) {
         flex-direction: column;
         font-size: 0.95rem; /* Base font size */
         transition: box-shadow 0.3s ease;
+    }
+    #agent-chatbox.agent-chat-collapsed {
+        width: auto;
+        min-width: 120px;
+    }
+    #agent-chatbox.agent-chat-collapsed #agent-chat-body {
+        display: none;
     }
     #agent-chatbox:focus-within { /* Highlight when interacting */
         box-shadow: 0 8px 25px rgba(0, 123, 255, 0.2);
