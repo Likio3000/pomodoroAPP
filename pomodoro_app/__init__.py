@@ -69,6 +69,13 @@ def create_app(config_name=None):
     limiter.init_app(app)
     csrf.init_app(app)
 
+    from pomodoro_app.main.api_routes import cleanup_old_agent_audio_files
+    # --- Clean up temporary agent audio files ---
+    with app.app_context():
+        cleanup_old_agent_audio_files(
+            app.config.get('MAX_AUDIO_FILE_AGE', 3600)
+        )
+
     # Disable rate limiting if testing
     # (Keep existing code) ...
     if app.config.get('TESTING', False) and not app.config.get('RATELIMIT_ENABLED', True):
