@@ -46,7 +46,6 @@
       '  <div class="global-timer-actions">',
       '    <button type="button" id="global-timerbox-pause">Pause</button>',
       '    <button type="button" id="global-timerbox-resume" style="display:none;">Resume</button>',
-      '    <button type="button" id="global-timerbox-complete">Complete</button>',
       '    <button type="button" id="global-timerbox-reset">Reset</button>',
       '    <button type="button" id="global-timerbox-open">Open Timer</button>',
       '  </div>',
@@ -67,7 +66,6 @@
     });
     document.getElementById('global-timerbox-pause').addEventListener('click', doPause);
     document.getElementById('global-timerbox-resume').addEventListener('click', doResume);
-    document.getElementById('global-timerbox-complete').addEventListener('click', doComplete);
     document.getElementById('global-timerbox-reset').addEventListener('click', doReset);
   }
 
@@ -147,19 +145,19 @@
       pauseBtn.style.display='';
       pauseBtn.disabled=false;
       resumeBtn.style.display='none';
-      completeBtn.disabled=false;
+      if(completeBtn) completeBtn.disabled=false;
       resetBtn.disabled=false;
     } else if(phase==='paused'){
       pauseBtn.style.display='none';
       resumeBtn.style.display='';
       resumeBtn.disabled=false;
-      completeBtn.disabled=true;
+      if(completeBtn) completeBtn.disabled=true;
       resetBtn.disabled=false;
     } else {
       pauseBtn.style.display='';
       pauseBtn.disabled=true;
       resumeBtn.style.display='none';
-      completeBtn.disabled=true;
+      if(completeBtn) completeBtn.disabled=true;
       resetBtn.disabled=true;
     }
   }
