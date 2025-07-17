@@ -86,6 +86,13 @@ class Config:
 
         return urlunparse(parsed)
 
+    @staticmethod
+    def _normalize_database_url(url: str) -> str:
+        """Convert postgres:// URLs to postgresql:// for SQLAlchemy."""
+        if url and url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""
@@ -94,10 +101,10 @@ class DevelopmentConfig(Config):
     # +++ ADDED BACK: Fallback SECRET_KEY specifically for development +++
     SECRET_KEY = os.environ.get('SECRET_KEY', 'default-dev-secret-key-CHANGE-ME')
     # +++ ADDED BACK: Use a separate fallback DB for development +++
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
+    SQLALCHEMY_DATABASE_URI = Config._normalize_database_url(os.environ.get(
         'DATABASE_URL',
         'sqlite:///' + os.path.join(basedir, 'pomodoro_app', 'pomodoro-dev.db')
-    )
+    ))
     # Less strict rate limits for development/testing
     RATELIMIT_DEFAULT = "500 per day;100 per hour;20 per minute"
     # Development uses memory by default unless RATELIMIT_STORAGE_URI is set via env var
@@ -107,6 +114,7 @@ class ProductionConfig(Config):
     """Production configuration."""
     FLASK_ENV = 'production'
     DEBUG = False
+    SQLALCHEMY_DATABASE_URI = Config._normalize_database_url(os.environ.get('DATABASE_URL'))
     # Production rate limits (can still be overridden by RATELIMIT_DEFAULT env var)
     RATELIMIT_DEFAULT = "200 per day;50 per hour" # Explicitly set standard limits
 
@@ -149,7 +157,7 @@ class TestingConfig(Config):
     TESTING = True
     DEBUG = True
     # Use in-memory SQLite database for tests or a dedicated test file
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_DATABASE_URI = Config._normalize_database_url('sqlite:///:memory:')
     WTF_CSRF_ENABLED = False  # Disable CSRF for testing forms
     SECRET_KEY = 'test-secret-key' # Explicitly set for tests, overrides base
     # Disable rate limiting for tests usually
