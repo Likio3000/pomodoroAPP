@@ -12,6 +12,7 @@ Features:
 - Live Countdown Timer: An interactive, JavaScript-powered timer with audio notifications.
 - Responsive Design: Clean, mobile-friendly layout built with HTML and CSS.
 - Modular Structure: Organized using Flask Blueprints for authentication and main app functionality.
+- Automatic cleanup of old AI-generated audio files (configurable with MAX_AUDIO_FILE_AGE).
 
 Project Structure:
 pomodoro_app/
@@ -67,6 +68,7 @@ Installation:
    #   flask secrets generate-key
    export DATABASE_URL='sqlite:///pomodoro.db' # Or your preferred DB connection string
    export OPENAI_API_KEY='your_openai_api_key_here' # Add your OpenAI key (required for chat feature)
+   export MAX_AUDIO_FILE_AGE=3600  # Optional: age in seconds for cleaning old agent audio
 
 5. Initialize the Database:
    The app will create the SQLite database (pomodoro.db) on first run, or run:
