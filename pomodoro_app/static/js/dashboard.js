@@ -53,12 +53,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let colors = buildChartColors(document.body.classList.contains('dark-theme') ? 'dark' : 'light');
 
-        const labels = sessionsData.slice().reverse().map(s => {
+        const reversed = sessionsData.slice().reverse();
+        const labels = reversed.map(s => {
             const d = new Date(s.timestamp);
             return d.toLocaleDateString();
         });
-        const workDur = sessionsData.slice().reverse().map(s => s.work_duration);
-        const breakDur = sessionsData.slice().reverse().map(s => s.break_duration);
+        const workDur = reversed.map(s => s.work_duration);
+        const breakDur = reversed.map(s => s.break_duration);
 
         const chart = new Chart(ctx, {
             type: 'line',
