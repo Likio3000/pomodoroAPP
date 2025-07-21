@@ -79,7 +79,10 @@
   {# Load libs for chat widget #}
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script type="module">
+    import { Chart } from 'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.esm.js';
+    window.Chart = Chart;
+  </script>
 
   <script>
     window.sessionHistory = {{ sessions_data|tojson }};
