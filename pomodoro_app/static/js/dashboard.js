@@ -40,7 +40,7 @@ function buildPointsWeekChart() {
     const d = new Date(now.getTime() - i * DAY_MS);
     const iso = d.toISOString().slice(0, 10);              // YYYY‑MM‑DD
     buckets.push({
-      label: d.toLocaleDateString(undefined, { weekday: 'short' }),
+      label: d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
       iso,
       points: 0
     });

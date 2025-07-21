@@ -208,7 +208,7 @@ def dashboard():
 
     sessions_data = [
         {
-            'timestamp': sess.timestamp.isoformat() if sess.timestamp else '',
+            'timestamp': sess.timestamp.isoformat(timespec='seconds') if sess.timestamp else '',
             'work_duration': sess.work_duration,
             'break_duration': sess.break_duration,
             'points_earned': sess.points_earned or 0,
