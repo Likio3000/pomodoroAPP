@@ -266,6 +266,13 @@ body.dark-theme {
     margin-top: 0.3em;
     display: block;
 }
+/* Optional helper text shown under form fields */
+.form-help {
+  font-size: 0.9em;
+  color: #6c757d;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
 
 .btn {
   padding: 0.6em 1.5em;

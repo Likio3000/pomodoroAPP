@@ -10,21 +10,25 @@
     <div class="form-group">
       {{ form.preferred_work_minutes.label }}<br>
       {{ form.preferred_work_minutes(class="input") }}
+      <p class="form-help">How long a single focus session should last by default.</p>
       {% for error in form.preferred_work_minutes.errors %}<span class="error">{{ error }}</span>{% endfor %}
     </div>
     <div class="form-group">
       {{ form.productivity_goal.label }}<br>
       {{ form.productivity_goal(class="input") }}
+      <p class="form-help">A short phrase describing your overarching objective.</p>
       {% for error in form.productivity_goal.errors %}<span class="error">{{ error }}</span>{% endfor %}
     </div>
     <div class="form-group">
       {{ form.daily_focus_goal.label }}<br>
       {{ form.daily_focus_goal(class="input") }}
+      <p class="form-help">Optional target for minutes of focused work per day.</p>
       {% for error in form.daily_focus_goal.errors %}<span class="error">{{ error }}</span>{% endfor %}
     </div>
     <div class="form-group">
       {{ form.focus_description.label }}<br>
       {{ form.focus_description(class="input") }}
+      <p class="form-help">Any extra notes about what you're concentrating on.</p>
       {% for error in form.focus_description.errors %}<span class="error">{{ error }}</span>{% endfor %}
     </div>
     {{ form.submit(class="btn") }}

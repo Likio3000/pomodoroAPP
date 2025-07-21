@@ -88,6 +88,17 @@ Usage:
 - View Analytics: Check the Dashboard for session statistics.
 - Chat (Optional): If configured, interact with the AI assistant on the dashboard.
 
+AI Profile
+----------
+Use the **Settings** page to configure your AI profile. These values help the assistant tailor its responses to you:
+
+- **Preferred Work Minutes**: Default length of a focused work block. The timer uses this when you start a new session.
+- **Productivity Goal**: Short statement describing what you want to achieve overall. The AI refers to this when giving encouragement.
+- **Daily Focus Goal (minutes)**: Optional daily target for time spent in focus mode. Helpful for tracking progress.
+- **Focus Description**: Optional details about what you intend to focus on today or this week.
+
+The AI assistant reads these fields to provide more relevant suggestions during chats and in motivational prompts.
+
 Running Tests:
   pytest
   # The tests use the built-in TestingConfig and do not require any
