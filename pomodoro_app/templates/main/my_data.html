@@ -14,7 +14,7 @@
         <li class="chat-history-item {{ 'user-message' if msg.role == 'user' else 'assistant-message' }}">
           <div>
             <strong>{{ msg.role.title() }}</strong>
-            <em>{{ msg.timestamp.isoformat() if msg.timestamp else '' }}</em>
+            <em>{{ msg.timestamp.isoformat(timespec='seconds') if msg.timestamp else '' }}</em>
 
             {% if msg.role == 'user' %}
             <form action="{{ url_for('main.delete_message_pair', message_id=msg.id) }}"

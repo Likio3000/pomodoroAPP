@@ -58,8 +58,8 @@
         <tbody>
           {% for sess in sessions %}
             <tr>
-              <td class="local-timestamp" data-timestamp="{{ sess.timestamp.isoformat() if sess.timestamp else '' }}">
-                 {% if sess.timestamp %}{{ sess.timestamp.isoformat() }}{% else %}N/A{% endif %}
+              <td class="local-timestamp" data-timestamp="{{ sess.timestamp.isoformat(timespec='seconds') if sess.timestamp else '' }}">
+                 {% if sess.timestamp %}{{ sess.timestamp.isoformat(timespec='seconds') }}{% else %}N/A{% endif %}
               </td>
               <td>{{ sess.work_duration }}</td>
               <td>{{ sess.break_duration }}</td>
