@@ -39,8 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Sessions Chart ---
     const sessionsData = window.sessionHistory || [];
-    if (sessionsData.length && window.Chart) {
-        const ctx = document.getElementById('sessions-chart').getContext('2d');
+    if (sessionsData.length && window.Chartist) {
 
         function buildChartColors(theme) {
             const dark = theme === 'dark';
@@ -61,50 +60,33 @@ document.addEventListener('DOMContentLoaded', function() {
         const workDur = reversed.map(s => s.work_duration);
         const breakDur = reversed.map(s => s.break_duration);
 
-        const chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Work (min)',
-                        data: workDur,
-                        borderColor: colors.work,
-                        backgroundColor: colors.work,
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Break (min)',
-                        data: breakDur,
-                        borderColor: colors.break,
-                        backgroundColor: colors.break,
-                        tension: 0.1
-                    }
-                ]
-            },
-            options: {
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, ticks: { color: colors.text } },
-                    x: { ticks: { color: colors.text } }
-                },
-                plugins: {
-                    legend: { labels: { color: colors.text } }
-                }
-            }
-        });
+        const chartContainer = '#sessions-chart';
 
-        // Update chart colors when theme changes
+        function drawChart(theme) {
+            colors = buildChartColors(theme);
+            const data = { labels: labels, series: [workDur, breakDur] };
+            const options = {
+                fullWidth: true,
+                chartPadding: { right: 40 },
+                axisY: { onlyInteger: true }
+            };
+            const chart = new Chartist.Line(chartContainer, data, options);
+            chart.on('created', () => {
+                document.querySelectorAll('#sessions-chart .ct-series-a .ct-line, #sessions-chart .ct-series-a .ct-point')
+                    .forEach(el => el.style.stroke = colors.work);
+                document.querySelectorAll('#sessions-chart .ct-series-b .ct-line, #sessions-chart .ct-series-b .ct-point')
+                    .forEach(el => el.style.stroke = colors.break);
+                document.querySelectorAll('#sessions-chart .ct-label')
+                    .forEach(el => el.style.color = colors.text);
+            });
+            return chart;
+        }
+
+        let chart = drawChart(document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+
+        // Redraw chart when theme changes
         document.body.addEventListener('themechange', (e) => {
-            colors = buildChartColors(e.detail);
-            chart.options.scales.x.ticks.color = colors.text;
-            chart.options.scales.y.ticks.color = colors.text;
-            chart.options.plugins.legend.labels.color = colors.text;
-            chart.data.datasets[0].borderColor = colors.work;
-            chart.data.datasets[0].backgroundColor = colors.work;
-            chart.data.datasets[1].borderColor = colors.break;
-            chart.data.datasets[1].backgroundColor = colors.break;
-            chart.update();
+            chart = drawChart(e.detail);
         });
     }
 
