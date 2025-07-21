@@ -11,7 +11,7 @@
       document.body.classList.remove('dark-theme');
       toggleBtn.textContent = '🌙';
     }
-    // Notify listeners (e.g., dashboard chart) of the theme change
+    // Notify listeners of the theme change
     document.body.dispatchEvent(new CustomEvent('themechange', { detail: theme }));
   }
 

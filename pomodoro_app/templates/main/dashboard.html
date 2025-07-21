@@ -69,9 +69,6 @@
         </tbody>
       </table>
     </div>
-    <div id="sessions-chart-container">
-      <canvas id="sessions-chart" aria-label="Weekly points chart"></canvas>
-    </div>
   {% else %}
     <p>No sessions recorded yet. <a href="{{ url_for('main.timer') }}">Start your first Pomodoro!</a></p>
   {% endif %}
@@ -82,7 +79,6 @@
 
   <script>
     window.sessionHistory = {{ sessions_data|tojson }};
-    window.weekPoints = {{ week_points_series|tojson }};
   </script>
 
   {# Removed unused ttsGloballyEnabled flag #}
@@ -93,7 +89,6 @@
   </script>
   <script src="{{ url_for('static', filename='js/agent_chat.js') }}" defer></script>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
 
 {% endblock %}

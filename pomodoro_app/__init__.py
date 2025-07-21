@@ -101,14 +101,11 @@ def create_app(config_name=None):
         # - frame-ancestors 'none': Prevents the site from being embedded in iframes (clickjacking protection).
         csp = (
             "default-src 'self'; "
-            "script-src 'self' https://cdn.jsdelivr.net 'unsafe-eval'; "  # Allow Chart.js
-            "script-src 'self' https://cdn.jsdelivr.net; "  # Allow CDN scripts like Chartist
-            "script-src 'self' https://cdn.jsdelivr.net; "  # CDN scripts allowed, strict CSP build of Chart.js
-            "script-src 'self' https://cdn.jsdelivr.net 'unsafe-eval'; " # For Marked/DOMPurify CDN and Chart.js
-            "style-src 'self' 'unsafe-inline'; "          # For local CSS and injected chat styles
-            "img-src 'self' data:; "                       # Allows local images and data URIs
-            "object-src 'none'; "                          # Disallow plugins (Flash, etc.)
-            "frame-ancestors 'none'; "                     # Prevent clickjacking
+            "script-src 'self' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "object-src 'none'; "
+            "frame-ancestors 'none'; "
             # Add other directives as needed (e.g., font-src, connect-src, media-src)
             # If you load fonts from Google Fonts, add: font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
         )

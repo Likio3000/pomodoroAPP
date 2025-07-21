@@ -558,13 +558,6 @@ body.dark-theme {
   margin-bottom: 2em;
   border-radius: 5px;
 }
-#sessions-chart-container {
-  margin: 2em auto;
-  max-width: 600px;
-  width: 100%;
-  position: relative;
-  height: 300px;
-}
 .sessions-table {
   width: 100%;
   border-collapse: collapse;
@@ -874,10 +867,6 @@ body.dark-theme .sessions-table td {
 }
 body.dark-theme .sessions-table tr:nth-child(even) {
   background: #1a1a1a;
-}
-body.dark-theme #sessions-chart-container {
-  background: #1e1e1e;
-  width: 100%;
 }
 body.dark-theme .chat-log {
   background-color: #1e1e1e;
