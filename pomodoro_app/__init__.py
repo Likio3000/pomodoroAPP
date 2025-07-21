@@ -101,6 +101,7 @@ def create_app(config_name=None):
         # - frame-ancestors 'none': Prevents the site from being embedded in iframes (clickjacking protection).
         csp = (
             "default-src 'self'; "
+            "script-src 'self' https://cdn.jsdelivr.net 'unsafe-eval'; "  # Allow Chart.js
             "script-src 'self' https://cdn.jsdelivr.net; "  # Allow CDN scripts like Chartist
             "script-src 'self' https://cdn.jsdelivr.net; "  # CDN scripts allowed, strict CSP build of Chart.js
             "script-src 'self' https://cdn.jsdelivr.net 'unsafe-eval'; " # For Marked/DOMPurify CDN and Chart.js
