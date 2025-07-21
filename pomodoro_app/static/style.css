@@ -554,6 +554,7 @@ body.dark-theme {
 #sessions-chart-container {
   margin: 2em auto;
   max-width: 600px;
+  width: 100%;
   position: relative;
   height: 300px;
 }
@@ -869,6 +870,7 @@ body.dark-theme .sessions-table tr:nth-child(even) {
 }
 body.dark-theme #sessions-chart-container {
   background: #1e1e1e;
+  width: 100%;
 }
 body.dark-theme .chat-log {
   background-color: #1e1e1e;
