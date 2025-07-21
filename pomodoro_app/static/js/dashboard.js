@@ -1,129 +1,77 @@
-// pomodoro_app/static/js/dashboard.js
-// ONLY handles dashboard-specific functionality like timestamp formatting.
-// Chat logic has been removed and is handled by agent_chat.js
+// static/js/dashboard.js
+// Handles timestamp localisation and draws two Chart.js charts.
 
-document.addEventListener('DOMContentLoaded', function() {
-    console.log("Dashboard JS loaded.");
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Dashboard JS loaded');
 
-    // --- Timestamp Formatting ---
-    const timestampCells = document.querySelectorAll('.local-timestamp');
-    timestampCells.forEach(cell => {
-      const isoTimestamp = cell.getAttribute('data-timestamp');
-      if (isoTimestamp) {
-        try {
-          const date = new Date(isoTimestamp);
-          if (isNaN(date.getTime())) {
-               throw new Error("Invalid Date parsed");
-          }
-          const options = {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: 'numeric', minute: '2-digit', hour12: true // Example: Use AM/PM
-          };
-          cell.textContent = date.toLocaleString(undefined, options); // Use browser locale
-          cell.title = isoTimestamp; // Keep ISO string in title attribute for clarity
-        } catch (e) {
-          console.error("Error formatting date:", isoTimestamp, e);
-           cell.textContent = isoTimestamp + " (Invalid Date)";
-           cell.title = "Error formatting this date";
+  /* ---------- 1. Local‑time formatting ---------- */
+  document.querySelectorAll('.local-timestamp').forEach(cell => {
+    const iso = cell.dataset.timestamp;
+    if (!iso) return;
+    const d   = new Date(iso);
+    if (Number.isNaN(d)) return;
+    cell.textContent = d.toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit'
+    });
+  });
+
+  /* ---------- 2. Weekly points line chart ---------- */
+  const weekPoints = window.weekPoints || [];               // [{date, points}, …]
+  if (weekPoints.length && window.Chart) {
+    const ctx     = document.getElementById('sessions-chart').getContext('2d');
+    const labels  = weekPoints.map(p =>
+      new Date(p.date).toLocaleDateString(undefined, { weekday: 'short' })
+    );
+    const data    = weekPoints.map(p => p.points);
+
+    const themeColors = t =>
+      t === 'dark'
+        ? { line: '#4dc9f6', text: '#e9e9e9' }
+        : { line: '#007bff', text: '#212529' };
+
+    const colors = themeColors(document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+
+    const pointsChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Points',
+          data,
+          borderColor: colors.line,
+          backgroundColor: colors.line,
+          tension: 0.25,
+          fill: false
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        scales: {
+          x: { ticks: { color: colors.text } },
+          y: { beginAtZero: true, ticks: { color: colors.text } }
+        },
+        plugins: {
+          legend: { labels: { color: colors.text } },
+          tooltip: { intersect: false }
         }
-      } else if (cell.textContent.trim() !== "N/A") {
-           cell.textContent = "N/A";
-           cell.title = "Timestamp unavailable";
       }
     });
 
-    // --- Chat Agent JavaScript Removed ---
-    // All chat functionality is now handled by the global agent_chat.js script,
-    // which creates a floating widget.
+    // live‑update colours when user toggles theme
+    document.body.addEventListener('themechange', e => {
+      const c = themeColors(e.detail);
+      const ds = pointsChart.data.datasets[0];
+      ds.borderColor = ds.backgroundColor = c.line;
+      pointsChart.options.scales.x.ticks.color           = c.text;
+      pointsChart.options.scales.y.ticks.color           = c.text;
+      pointsChart.options.plugins.legend.labels.color    = c.text;
+      pointsChart.update();
+    });
+  }
 
-
-    // --- Weekly Points Chart ---
-    const weekPoints = window.weekPoints || [];
-    if (weekPoints.length && window.Chart) {
-        const ctx = document.getElementById('sessions-chart').getContext('2d');
-    // --- Sessions Chart ---
-    const sessionsData = window.sessionHistory || [];
-    if (sessionsData.length && window.Chartist) {
-
-        function buildChartColors(theme) {
-            const dark = theme === 'dark';
-            return {
-                line: dark ? '#4dc9f6' : '#007bff',
-                text: dark ? '#e9e9e9' : '#212529'
-            };
-        }
-
-        const labels = weekPoints.map(p => {
-            const d = new Date(p.date);
-            return d.toLocaleDateString(undefined, { weekday: 'short' });
-        });
-        const points = weekPoints.map(p => p.points);
-
-        let colors = buildChartColors(document.body.classList.contains('dark-theme') ? 'dark' : 'light');
-
-
-        const config = {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Points',
-                    data: points,
-                    borderColor: colors.line,
-                    backgroundColor: colors.line,
-                    tension: 0.1,
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, ticks: { color: colors.text } },
-                    x: { ticks: { color: colors.text } }
-                },
-                plugins: { legend: { labels: { color: colors.text } } }
-            }
-        };
-
-        let chart = new Chart(ctx, config);
-
-        document.body.addEventListener('themechange', (e) => {
-            colors = buildChartColors(e.detail);
-            chart.options.scales.x.ticks.color = colors.text;
-            chart.options.scales.y.ticks.color = colors.text;
-            chart.options.plugins.legend.labels.color = colors.text;
-            chart.data.datasets[0].borderColor = colors.line;
-            chart.data.datasets[0].backgroundColor = colors.line;
-            chart.update();
-        const chartContainer = '#sessions-chart';
-
-        function drawChart(theme) {
-            colors = buildChartColors(theme);
-            const data = { labels: labels, series: [workDur, breakDur] };
-            const options = {
-                fullWidth: true,
-                chartPadding: { right: 40 },
-                axisY: { onlyInteger: true }
-            };
-            const chart = new Chartist.Line(chartContainer, data, options);
-            chart.on('created', () => {
-                document.querySelectorAll('#sessions-chart .ct-series-a .ct-line, #sessions-chart .ct-series-a .ct-point')
-                    .forEach(el => el.style.stroke = colors.work);
-                document.querySelectorAll('#sessions-chart .ct-series-b .ct-line, #sessions-chart .ct-series-b .ct-point')
-                    .forEach(el => el.style.stroke = colors.break);
-                document.querySelectorAll('#sessions-chart .ct-label')
-                    .forEach(el => el.style.color = colors.text);
-            });
-            return chart;
-        }
-
-        let chart = drawChart(document.body.classList.contains('dark-theme') ? 'dark' : 'light');
-
-        // Redraw chart when theme changes
-        document.body.addEventListener('themechange', (e) => {
-            chart = drawChart(e.detail);
-        });
-    }
-
-    console.log("Dashboard timestamp formatting applied.");
-
-}); // end DOMContentLoaded
+  /* ---------- 3. Session history bar chart (optional) ---------- */
+  // If you still want a second chart, either:
+  //  - load Chart.js again with a different canvas, OR
+  //  - keep Chartist, but then ALSO load its CSS+JS in the template
+});
