@@ -216,17 +216,6 @@ def dashboard():
         for sess in aware_sessions
     ]
 
-    start_week_date = start_of_week_utc.date()
-    week_dates = [start_week_date + timedelta(days=i) for i in range(7)]
-    daily_points = {d: 0 for d in week_dates}
-    for sess in aware_sessions:
-        if sess.timestamp and sess.timestamp >= start_of_week_utc:
-            day = sess.timestamp.date()
-            if day in daily_points:
-                daily_points[day] += sess.points_earned or 0
-    week_points_series = [
-        {'date': d.isoformat(), 'points': daily_points[d]} for d in week_dates
-    ]
 
     return render_template('main/dashboard.html',
                            total_points=total_points,
@@ -241,7 +230,6 @@ def dashboard():
                            week_points=week_points,
                            sessions=aware_sessions,  # For table display
                            sessions_data=sessions_data,  # JSON-serializable list
-                           week_points_series=week_points_series,
                            chat_enabled=chat_enabled)
 
 
