@@ -193,7 +193,7 @@ def test_mydata_view_has_pair_delete_only(logged_in_user, clean_db, test_app):
     assert resp.status_code == 200
     assert b'hello' in resp.data
     assert b'Delete Pair' in resp.data
-    assert b'btn-danger' not in resp.data
+    assert b'Delete All' in resp.data
 
 
 def test_mydata_messages_order(logged_in_user, clean_db, test_app):
@@ -238,6 +238,44 @@ def test_mydata_delete_pair(logged_in_user, clean_db, test_app):
         assert ChatMessage.query.filter_by(role='assistant', text='a1').first() is None
         # Ensure later messages remain
         assert ChatMessage.query.filter_by(role='user', text='q2').first() is not None
+
+
+def test_mydata_delete_all(logged_in_user, clean_db, test_app):
+    """Deleting all messages removes entire history."""
+    from pomodoro_app.models import ChatMessage, User
+
+    with test_app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        user_id = user.id
+        messages = [
+            ChatMessage(user_id=user_id, role='user', text='q1'),
+            ChatMessage(user_id=user_id, role='assistant', text='a1'),
+            ChatMessage(user_id=user_id, role='user', text='q2'),
+            ChatMessage(user_id=user_id, role='assistant', text='a2'),
+        ]
+        db.session.add_all(messages)
+        db.session.commit()
+
+    resp = logged_in_user.post(url_for('main.delete_all_messages'), follow_redirects=True)
+    assert resp.status_code == 200
+    assert b'All chat history deleted' in resp.data
+
+    with test_app.app_context():
+        assert ChatMessage.query.filter_by(user_id=user_id).count() == 0
+
+
+def test_mydata_delete_all_button_visible(logged_in_user, clean_db, test_app):
+    from pomodoro_app.models import ChatMessage, User
+
+    with test_app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        msg = ChatMessage(user_id=user.id, role='user', text='hello')
+        db.session.add(msg)
+        db.session.commit()
+
+    resp = logged_in_user.get(url_for('main.my_data'))
+    assert resp.status_code == 200
+    assert b'Delete All' in resp.data
 
 
 def test_mydata_limit(logged_in_user, clean_db, test_app, monkeypatch):

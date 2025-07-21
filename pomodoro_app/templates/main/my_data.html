@@ -4,6 +4,11 @@
   <p>Below is your stored chat history. Messages are grouped in user/assistant pairs. Use the button on a user message to delete its pair.</p>
 
   {% if messages %}
+    <form action="{{ url_for('main.delete_all_messages') }}" method="post" style="margin-bottom:1em;" onsubmit="return confirm('Delete all chat history?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-sm btn-danger">Delete All</button>
+    </form>
+
     <ul class="chat-history">
       {% for msg in messages %}
         <li class="chat-history-item {{ 'user-message' if msg.role == 'user' else 'assistant-message' }}">
