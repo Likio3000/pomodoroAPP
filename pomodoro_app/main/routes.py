@@ -206,6 +206,15 @@ def dashboard():
     chat_enabled = current_app.config.get('FEATURE_CHAT_ENABLED', False)
     current_app.logger.debug(f"Dashboard: Rendering for User {user_id}. Chat enabled: {chat_enabled}")
 
+    sessions_data = [
+        {
+            'timestamp': sess.timestamp.isoformat() if sess.timestamp else '',
+            'work_duration': sess.work_duration,
+            'break_duration': sess.break_duration,
+        }
+        for sess in aware_sessions
+    ]
+
     return render_template('main/dashboard.html',
                            total_points=total_points,
                            total_focus=total_focus,
@@ -217,7 +226,8 @@ def dashboard():
                            week_focus=week_focus,
                            week_sessions=week_sessions,
                            week_points=week_points,
-                           sessions=aware_sessions, # Pass the potentially timezone-aware sessions
+                           sessions=aware_sessions,  # For table display
+                           sessions_data=sessions_data,  # JSON-serializable list
                            chat_enabled=chat_enabled)
 
 
