@@ -41,6 +41,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const weekPoints = window.weekPoints || [];
     if (weekPoints.length && window.Chart) {
         const ctx = document.getElementById('sessions-chart').getContext('2d');
+    // --- Sessions Chart ---
+    const sessionsData = window.sessionHistory || [];
+    if (sessionsData.length && window.Chartist) {
 
         function buildChartColors(theme) {
             const dark = theme === 'dark';
@@ -57,6 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const points = weekPoints.map(p => p.points);
 
         let colors = buildChartColors(document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+
 
         const config = {
             type: 'line',
@@ -90,6 +94,33 @@ document.addEventListener('DOMContentLoaded', function() {
             chart.data.datasets[0].borderColor = colors.line;
             chart.data.datasets[0].backgroundColor = colors.line;
             chart.update();
+        const chartContainer = '#sessions-chart';
+
+        function drawChart(theme) {
+            colors = buildChartColors(theme);
+            const data = { labels: labels, series: [workDur, breakDur] };
+            const options = {
+                fullWidth: true,
+                chartPadding: { right: 40 },
+                axisY: { onlyInteger: true }
+            };
+            const chart = new Chartist.Line(chartContainer, data, options);
+            chart.on('created', () => {
+                document.querySelectorAll('#sessions-chart .ct-series-a .ct-line, #sessions-chart .ct-series-a .ct-point')
+                    .forEach(el => el.style.stroke = colors.work);
+                document.querySelectorAll('#sessions-chart .ct-series-b .ct-line, #sessions-chart .ct-series-b .ct-point')
+                    .forEach(el => el.style.stroke = colors.break);
+                document.querySelectorAll('#sessions-chart .ct-label')
+                    .forEach(el => el.style.color = colors.text);
+            });
+            return chart;
+        }
+
+        let chart = drawChart(document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+
+        // Redraw chart when theme changes
+        document.body.addEventListener('themechange', (e) => {
+            chart = drawChart(e.detail);
         });
     }
 
