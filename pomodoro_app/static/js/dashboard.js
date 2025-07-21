@@ -51,6 +51,9 @@ function buildPointsWeekChart() {
     if (!sess.timestamp) return;
     const isoDay = new Date(sess.timestamp).toISOString().slice(0, 10);
     const bucket = buckets.find(b => b.iso === isoDay);
+    if (!bucket) return;
+    const pts = Number(sess.points_earned);
+    if (!Number.isNaN(pts)) bucket.points += pts;
     if (bucket) bucket.points += (sess.points_earned || 0);
   });
 
