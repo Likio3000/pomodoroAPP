@@ -48,12 +48,12 @@ function buildPointsWeekChart() {
 
   // Sum points into their day bucket
   sessions.forEach(sess => {
-    if (!sess.timestamp) return;
+    const pts = Number(sess.points_earned);
+    if (!sess.timestamp || !Number.isFinite(pts)) return;
+
     const isoDay = new Date(sess.timestamp).toISOString().slice(0, 10);
     const bucket = buckets.find(b => b.iso === isoDay);
-    if (!bucket) return;
-    const pts = Number(sess.points_earned);
-    if (!Number.isNaN(pts)) bucket.points += pts;
+    if (bucket) bucket.points += pts;     // one, and only one, increment
   });
 
   const labels = buckets.map(b => b.label);
