@@ -130,7 +130,8 @@ class ProductionConfig(Config):
 
         # Fail if using the development default secret key in production
         secret_key = validated_vars["SECRET_KEY"]
-        if secret_key == DevelopmentConfig.SECRET_KEY:
+        # Compare against the literal development default to avoid env var side effects
+        if secret_key == 'default-dev-secret-key-CHANGE-ME':
             raise RuntimeError("Production SECRET_KEY matches development default")
         # Ensure the runtime SECRET_KEY value is stored on the instance so
         # app.config.from_object picks it up

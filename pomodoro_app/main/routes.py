@@ -284,6 +284,24 @@ def delete_message_pair(message_id):
     return redirect(url_for('main.my_data'))
 
 
+@main.route('/mydata/delete_all', methods=['POST'])
+@login_required
+def delete_all_messages():
+    """Delete all chat history for the current user."""
+    try:
+        ChatMessage.query.filter_by(user_id=current_user.id).delete(synchronize_session=False)
+        db.session.commit()
+        flash('All chat history deleted.', 'success')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(
+            f"MyData: DB error deleting all messages for user {current_user.id}: {e}"
+        )
+        flash('Database error; messages not deleted.', 'error')
+
+    return redirect(url_for('main.my_data'))
+
+
 @main.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
