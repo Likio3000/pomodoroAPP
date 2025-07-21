@@ -101,7 +101,7 @@ def create_app(config_name=None):
         # - frame-ancestors 'none': Prevents the site from being embedded in iframes (clickjacking protection).
         csp = (
             "default-src 'self'; "
-            "script-src 'self' https://cdn.jsdelivr.net; " # For Marked/DOMPurify CDN
+            "script-src 'self' https://cdn.jsdelivr.net 'unsafe-eval'; "  # Allow Chart.js
             "style-src 'self' 'unsafe-inline'; "          # For local CSS and injected chat styles
             "img-src 'self' data:; "                       # Allows local images and data URIs
             "object-src 'none'; "                          # Disallow plugins (Flash, etc.)

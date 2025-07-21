@@ -83,6 +83,7 @@
 
   <script>
     window.sessionHistory = {{ sessions_data|tojson }};
+    window.weekPoints = {{ week_points_series|tojson }};
   </script>
 
   {# Removed unused ttsGloballyEnabled flag #}

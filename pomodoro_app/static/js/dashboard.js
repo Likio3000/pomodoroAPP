@@ -37,50 +37,38 @@ document.addEventListener('DOMContentLoaded', function() {
     // which creates a floating widget.
 
 
-    // --- Sessions Chart ---
-    const sessionsData = window.sessionHistory || [];
-    if (sessionsData.length && window.Chart) {
+    // --- Weekly Points Chart ---
+    const weekPoints = window.weekPoints || [];
+    if (weekPoints.length && window.Chart) {
         const ctx = document.getElementById('sessions-chart').getContext('2d');
 
         function buildChartColors(theme) {
             const dark = theme === 'dark';
             return {
-                work: dark ? '#4dc9f6' : '#007bff',
-                break: dark ? '#a4e786' : '#28a745',
+                line: dark ? '#4dc9f6' : '#007bff',
                 text: dark ? '#e9e9e9' : '#212529'
             };
         }
 
+        const labels = weekPoints.map(p => {
+            const d = new Date(p.date);
+            return d.toLocaleDateString(undefined, { weekday: 'short' });
+        });
+        const points = weekPoints.map(p => p.points);
+
         let colors = buildChartColors(document.body.classList.contains('dark-theme') ? 'dark' : 'light');
 
-        const reversed = sessionsData.slice().reverse();
-        const labels = reversed.map(s => {
-            const d = new Date(s.timestamp);
-            return d.toLocaleDateString();
-        });
-        const workDur = reversed.map(s => s.work_duration);
-        const breakDur = reversed.map(s => s.break_duration);
-
-        const chart = new Chart(ctx, {
+        const config = {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [
-                    {
-                        label: 'Work (min)',
-                        data: workDur,
-                        borderColor: colors.work,
-                        backgroundColor: colors.work,
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Break (min)',
-                        data: breakDur,
-                        borderColor: colors.break,
-                        backgroundColor: colors.break,
-                        tension: 0.1
-                    }
-                ]
+                datasets: [{
+                    label: 'Points',
+                    data: points,
+                    borderColor: colors.line,
+                    backgroundColor: colors.line,
+                    tension: 0.1,
+                }]
             },
             options: {
                 maintainAspectRatio: false,
@@ -88,22 +76,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     y: { beginAtZero: true, ticks: { color: colors.text } },
                     x: { ticks: { color: colors.text } }
                 },
-                plugins: {
-                    legend: { labels: { color: colors.text } }
-                }
+                plugins: { legend: { labels: { color: colors.text } } }
             }
-        });
+        };
 
-        // Update chart colors when theme changes
+        let chart = new Chart(ctx, config);
+
         document.body.addEventListener('themechange', (e) => {
             colors = buildChartColors(e.detail);
             chart.options.scales.x.ticks.color = colors.text;
             chart.options.scales.y.ticks.color = colors.text;
             chart.options.plugins.legend.labels.color = colors.text;
-            chart.data.datasets[0].borderColor = colors.work;
-            chart.data.datasets[0].backgroundColor = colors.work;
-            chart.data.datasets[1].borderColor = colors.break;
-            chart.data.datasets[1].backgroundColor = colors.break;
+            chart.data.datasets[0].borderColor = colors.line;
+            chart.data.datasets[0].backgroundColor = colors.line;
             chart.update();
         });
     }
