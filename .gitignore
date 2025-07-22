@@ -35,7 +35,7 @@ instance/
 *.db
 +*.db-*
 # … except the dev database we actually want in the repo
-!pomodoro-dev.db
+# !pomodoro-dev.db
 
 # VS Code settings
 .vscode/
