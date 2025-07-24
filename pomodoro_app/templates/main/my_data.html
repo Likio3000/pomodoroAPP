@@ -39,14 +39,4 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   <script src="{{ url_for('static', filename='js/agent_chat.js') }}" defer></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const history = {{ messages_data | tojson | safe }};
-      try {
-        sessionStorage.setItem('pomodoroAgentChatHistory_v1', JSON.stringify(history));
-      } catch (e) {
-        console.error('Failed to sync chat history', e);
-      }
-    });
-  </script>
 {% endblock %}
