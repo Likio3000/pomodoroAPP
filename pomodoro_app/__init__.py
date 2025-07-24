@@ -94,7 +94,9 @@ def create_app(config_name=None):
     def add_security_headers(resp):
         # Content Security Policy (CSP)
         # - default-src 'self': Allows loading resources only from the same origin by default.
-        # - script-src 'self' https://cdn.jsdelivr.net: Allows scripts from self and the specified CDN.
+        # - script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net:
+        #     Allows scripts from self and the CDN, and permits inline scripts
+        #     (needed for dynamic configuration blocks).
         # - style-src 'self' 'unsafe-inline': Allows CSS from self and inline styles (needed for dynamically added styles like agent_chat.js).
         # - img-src 'self' data:: Allows images from self and data URIs (if used).
         # - object-src 'none': Disallows plugins like Flash.
