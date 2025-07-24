@@ -101,7 +101,7 @@ def create_app(config_name=None):
         # - frame-ancestors 'none': Prevents the site from being embedded in iframes (clickjacking protection).
         csp = (
             "default-src 'self'; "
-            "script-src 'self' https://cdn.jsdelivr.net; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; "
             "object-src 'none'; "
