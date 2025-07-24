@@ -249,29 +249,15 @@ def leaderboard():
 def my_data():
     """Show the user’s stored chat messages."""
     try:
-        messages = (
-            ChatMessage.query
-            .filter_by(user_id=current_user.id)
-            .order_by(ChatMessage.timestamp.asc())
-            .all()
-        )
+        messages = (ChatMessage.query
+                               .filter_by(user_id=current_user.id)
+                               .order_by(ChatMessage.timestamp.asc())
+                               .all())
     except SQLAlchemyError as e:
-        current_app.logger.error(
-            f"MyData: DB error for user {current_user.id}: {e}"
-        )
+        current_app.logger.error(f"MyData: DB error for user {current_user.id}: {e}")
         messages = []
 
-    messages_data = [
-        {
-            "sender": "ai" if m.role == "assistant" else "user",
-            "text": m.text,
-        }
-        for m in messages
-    ]
-
-    return render_template(
-        "main/my_data.html", messages=messages, messages_data=messages_data
-    )
+    return render_template('main/my_data.html', messages=messages)
 
 
 
