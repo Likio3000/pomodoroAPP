@@ -1,0 +1,12 @@
+:root {
+  --paper: #f7f8f2;
+  --ink: #233f35;
+  --muted: #626e69;
+  --line: #ced4cb;
+  --line-strong: #8c9b92;
+  --wash: #e9eee4;
+  --accent: #b56d46;
+  --serif: 'Iowan Old Style', 'Baskerville', 'Palatino Linotype', Georgia, serif;
+  --sans: 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  color-scheme: light;
+}
