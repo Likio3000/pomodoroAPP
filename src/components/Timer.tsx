@@ -1,5 +1,6 @@
+import { useI18n } from '../i18n/context';
 import { useEffect, useState } from 'react';
-import { clockText, MODE_LABELS, remaining, type Mode, type State } from '../domain/model';
+import { clockText, remaining, type Mode, type State } from '../domain/model';
 import { dispatch, dismissCompletion } from '../store';
 import { unlockSound } from '../sound';
 import { Icon } from './Icon';
@@ -16,6 +17,8 @@ const ticks = Array.from({ length: 60 }, (_, index) => (
   />
 ));
 export function Timer({ state }: { state: State }) {
+  const { t } = useI18n();
+  const modeLabels = { focus: t('mode.focus'), short: t('mode.short'), long: t('mode.long') };
   const [now, setNow] = useState(Date.now);
   const [confirm, setConfirm] = useState<Mode | 'reset' | null>(null);
   const timer = state.timer;
@@ -69,19 +72,13 @@ export function Timer({ state }: { state: State }) {
   return (
     <section className={`focus-canvas mode-${timer.mode}`} aria-labelledby="focus-title">
       <header className="focus-heading">
-        <h1 id="focus-title">
-          {timer.mode === 'focus' ? 'Una cosa a la vez.' : 'También cuenta parar.'}
-        </h1>
-        <p>
-          {timer.mode === 'focus'
-            ? 'Haz espacio para lo importante.'
-            : 'Suelta la pantalla. Respira. Vuelve a tu ritmo.'}
-        </p>
+        <h1 id="focus-title">{timer.mode === 'focus' ? t('title') : t('breakTitle')}</h1>
+        <p>{timer.mode === 'focus' ? t('subtitle') : t('breakSubtitle')}</p>
       </header>
-      <div className="mode-switch" role="group" aria-label="Tipo de sesión">
-        {(Object.keys(MODE_LABELS) as Mode[]).map((mode) => (
+      <div className="mode-switch" role="group" aria-label={t('sessionType')}>
+        {(Object.keys(modeLabels) as Mode[]).map((mode) => (
           <button key={mode} aria-pressed={timer.mode === mode} onClick={() => choose(mode)}>
-            {MODE_LABELS[mode]}
+            {modeLabels[mode]}
           </button>
         ))}
       </div>
@@ -104,19 +101,19 @@ export function Timer({ state }: { state: State }) {
           <span
             className="timer-value"
             role="timer"
-            aria-label={`${MODE_LABELS[timer.mode]}: ${clockText(left)}`}
+            aria-label={`${modeLabels[timer.mode]}: ${clockText(left)}`}
             aria-live="off"
           >
             {clockText(left)}
           </span>
           <span className="timer-caption">
             {timer.status === 'paused'
-              ? 'A TU RITMO'
+              ? t('captionPaused')
               : timer.status === 'running'
                 ? timer.mode === 'focus'
-                  ? 'ESTÁS AQUÍ. ES SUFICIENTE.'
-                  : 'RECARGANDO ENERGÍA'
-                : 'TODO EMPIEZA AQUÍ'}
+                  ? t('captionFocus')
+                  : t('captionBreak')
+                : t('captionIdle')}
           </span>
         </div>
       </div>
@@ -130,14 +127,14 @@ export function Timer({ state }: { state: State }) {
         <button className="primary start-button" onClick={toggle}>
           <Icon name={timer.status === 'running' ? 'pause' : 'play'} size={23} />
           {timer.status === 'running'
-            ? 'Pausar'
+            ? t('pause')
             : timer.status === 'paused'
-              ? 'Continuar'
-              : 'Comenzar'}
+              ? t('resume')
+              : t('start')}
         </button>
         <button
           className="reset-button icon-button"
-          aria-label="Reiniciar temporizador"
+          aria-label={t('resetTimer')}
           disabled={timer.status === 'idle'}
           onClick={() => setConfirm('reset')}
         >
@@ -145,18 +142,14 @@ export function Timer({ state }: { state: State }) {
         </button>
       </div>
       <p className="keyboard-tip">
-        <kbd>Espacio</kbd> para empezar o pausar
+        <kbd>{t('space')}</kbd> {t('keyboardHint')}
       </p>
       {confirm ? (
-        <Dialog title="¿Empezamos de nuevo?" onClose={() => setConfirm(null)}>
-          <p className="dialog-copy">
-            Esta sesión está en marcha. Si{' '}
-            {confirm === 'reset' ? 'la reinicias' : 'cambias de modo'}, su tiempo no se añadirá al
-            historial. Tus sesiones completadas se conservan.
-          </p>
+        <Dialog title={t('resetTitle')} onClose={() => setConfirm(null)}>
+          <p className="dialog-copy">{t(confirm === 'reset' ? 'resetBody' : 'modeBody')}</p>
           <div className="dialog-actions">
             <button className="secondary" onClick={() => setConfirm(null)}>
-              Seguir aquí
+              {t('stay')}
             </button>
             <button
               className="primary"
@@ -168,7 +161,7 @@ export function Timer({ state }: { state: State }) {
               }}
             >
               {' '}
-              {confirm === 'reset' ? 'Reiniciar' : 'Cambiar de modo'}
+              {confirm === 'reset' ? t('reset') : t('changeMode')}
             </button>
           </div>
         </Dialog>

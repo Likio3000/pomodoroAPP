@@ -1,10 +1,15 @@
+import { translate, UserError } from './i18n/messages';
 import { useSyncExternalStore } from 'react';
 import { openDatabase, transaction } from './domain/database';
 import type { Command, State } from './domain/model';
 import { chime } from './sound';
 import { dayKey } from './domain/stats';
 
-type Snapshot = { state: State | null; error: string | null; completion: string | null };
+type Snapshot = {
+  state: State | null;
+  error: UserError | null;
+  completion: 'focusComplete' | 'breakComplete' | null;
+};
 let snapshot: Snapshot = { state: null, error: null, completion: null };
 const listeners = new Set<() => void>();
 let database: Promise<IDBDatabase> | null = null;
@@ -27,12 +32,12 @@ export async function dispatch(command?: Command): Promise<boolean> {
       emit({ state: result.state, error: null });
     if (command?.type === 'restore' || command?.type === 'reset') emit({ completion: null });
     if (result.completed) {
-      emit({ completion: 'Sesión completada. Buen trabajo. Ahora, un respiro.' });
+      emit({ completion: 'focusComplete' });
       if (result.state.settings.sound) chime();
       if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
         try {
-          new Notification('pomodoro. — Sesión completada', {
-            body: 'Buen trabajo. Es momento de descansar.',
+          new Notification(translate(result.state.language ?? 'es', 'notificationTitle'), {
+            body: translate(result.state.language ?? 'es', 'notificationBody'),
             tag: 'pomodoro-complete',
           });
         } catch {
@@ -40,17 +45,14 @@ export async function dispatch(command?: Command): Promise<boolean> {
         }
       }
     } else if (result.finished) {
-      emit({ completion: 'Pausa terminada. Vuelve a tu ritmo cuando quieras.' });
+      emit({ completion: 'breakComplete' });
       if (result.state.settings.sound) chime();
     }
     if (command) channel?.postMessage(result.state.revision);
     return true;
   } catch (error) {
     emit({
-      error:
-        error instanceof Error
-          ? error.message
-          : 'No se han podido guardar los datos. Comprueba el espacio disponible y vuelve a intentarlo.',
+      error: error instanceof UserError ? error : new UserError('storageError'),
     });
     return false;
   }

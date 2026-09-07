@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n/context';
 import { useState } from 'react';
 import type { State } from '../domain/model';
 import { csv, dayKey, daysBefore, statistics } from '../domain/stats';
@@ -11,41 +12,41 @@ export function download(contents: string, filename: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export function Metrics({ state, allTime = false }: { state: State; allTime?: boolean }) {
-  const stats = statistics(state.sessions, Date.now());
+  const { t, language } = useI18n();
+  const stats = statistics(state.sessions, Date.now(), language);
   return (
     <div
       className="metrics"
       role="region"
-      aria-label={allTime ? 'Progreso acumulado' : 'Progreso de hoy'}
+      aria-label={allTime ? t('totalProgress') : t('todayProgress')}
     >
       <div>
         <p>
           {allTime ? stats.totalMinutes : stats.minutes}
           <span> min</span>
         </p>
-        <span className="metric-label">
-          {allTime ? 'ENFOQUE ACUMULADO' : 'TIEMPO DE ENFOQUE HOY'}
-        </span>
+        <span className="metric-label">{allTime ? t('totalFocus') : t('todayFocus')}</span>
       </div>
       <div>
         <p>{allTime ? state.sessions.length : stats.today.length}</p>
-        <span className="metric-label">{allTime ? 'SESIONES COMPLETADAS' : 'SESIONES DE HOY'}</span>
+        <span className="metric-label">{allTime ? t('totalSessions') : t('todaySessions')}</span>
       </div>
       <div>
         <p>
           {stats.streak}
-          <span> {stats.streak === 1 ? 'día' : 'días'}</span>
+          <span> {stats.streak === 1 ? t('day') : t('days')}</span>
         </p>
-        <span className="metric-label">RACHA ACTUAL</span>
+        <span className="metric-label">{t('streak')}</span>
       </div>
     </div>
   );
 }
 export function Progress({ state }: { state: State }) {
+  const { t, language, locale } = useI18n();
   const [filter, setFilter] = useState('week');
   const [limit, setLimit] = useState(30);
   const now = Date.now();
-  const stats = statistics(state.sessions, now);
+  const stats = statistics(state.sessions, now, language);
   const weekMinutes = stats.week.reduce((sum, day) => sum + day.minutes, 0);
   const max = Math.max(60, ...stats.week.map((d) => d.minutes));
   const sessions = state.sessions
@@ -61,36 +62,47 @@ export function Progress({ state }: { state: State }) {
     <main className="progress-page" id="main-content">
       <header className="progress-heading">
         <div>
-          <h1>El tiempo bien dedicado.</h1>
-          <p className="muted">Pequeños momentos. Un progreso que se queda.</p>
+          <h1>{t('progressTitle')}</h1>
+          <p className="muted">{t('progressSubtitle')}</p>
         </div>
         <button
           className="secondary"
           disabled={!state.sessions.length}
           onClick={() =>
             download(
-              csv(state.sessions),
-              `pomodoro-sesiones-${dayKey(now)}.csv`,
+              csv(state.sessions, language),
+              `senda-${t('sessionsFile')}-${dayKey(now)}.csv`,
               'text/csv;charset=utf-8',
             )
           }
         >
           <Icon name="download" size={18} />
-          Exportar CSV
+          {t('exportCsv')}
         </button>
       </header>
       <Metrics state={state} allTime />
       <section className="week-section" aria-labelledby="week-title">
         <div className="section-heading">
-          <h2 id="week-title">Tu última semana</h2>
+          <h2 id="week-title">{t('lastWeek')}</h2>
           <span className="muted">
-            {weekMinutes} {weekMinutes === 1 ? 'minuto' : 'minutos'} de enfoque
+            {t('focusMinutes', {
+              count: weekMinutes,
+              unit: t(weekMinutes === 1 ? 'minute' : 'minutes'),
+            })}
           </span>
         </div>
         <div
           className="week-chart"
           role="img"
-          aria-label={stats.week.map((d) => `${d.key}: ${d.minutes} minutos`).join(', ')}
+          aria-label={stats.week
+            .map((d) =>
+              t('chartDay', {
+                date: d.key,
+                count: d.minutes,
+                unit: t(d.minutes === 1 ? 'minute' : 'minutes'),
+              }),
+            )
+            .join(', ')}
         >
           {stats.week.map((d) => (
             <div className={`chart-column ${d.today ? 'today' : ''}`} key={d.key}>
@@ -98,21 +110,19 @@ export function Progress({ state }: { state: State }) {
               <div className="bar-track">
                 <div className="chart-bar" style={{ height: `${(d.minutes / max) * 100}%` }} />
               </div>
-              <span className="day-label">{d.today ? 'hoy' : d.label}</span>
+              <span className="day-label">{d.today ? t('today') : d.label}</span>
             </div>
           ))}
         </div>
         <p className="small muted">
-          {state.sessions.length
-            ? 'Solo sesiones de enfoque terminadas. Los descansos no suman minutos.'
-            : 'Tu primera sesión dibujará el comienzo. Sin prisas.'}
+          {state.sessions.length ? t('historyExplanation') : t('firstSession')}
         </p>
       </section>
       <section className="history-section" aria-labelledby="history-title">
         <div className="section-heading">
-          <h2 id="history-title">Sesión a sesión</h2>
+          <h2 id="history-title">{t('sessionBySession')}</h2>
           <label className="history-filter">
-            <span className="sr-only">Filtrar historial</span>
+            <span className="sr-only">{t('filterHistory')}</span>
             <select
               value={filter}
               onChange={(e) => {
@@ -120,9 +130,9 @@ export function Progress({ state }: { state: State }) {
                 setLimit(30);
               }}
             >
-              <option value="today">Hoy</option>
-              <option value="week">Últimos 7 días</option>
-              <option value="all">Todo el historial</option>
+              <option value="today">{t('todayFilter')}</option>
+              <option value="week">{t('weekFilter')}</option>
+              <option value="all">{t('allHistory')}</option>
             </select>
           </label>
         </div>
@@ -135,9 +145,9 @@ export function Progress({ state }: { state: State }) {
                     <Icon name="check" size={18} />
                   </span>
                   <div>
-                    <strong>{s.taskTitle || 'Un momento de enfoque'}</strong>
+                    <strong>{s.taskTitle || t('untitledSession')}</strong>
                     <time dateTime={new Date(s.completedAt).toISOString()}>
-                      {new Date(s.completedAt).toLocaleString('es', {
+                      {new Date(s.completedAt).toLocaleString(locale, {
                         day: 'numeric',
                         month: 'short',
                         hour: '2-digit',
@@ -151,17 +161,15 @@ export function Progress({ state }: { state: State }) {
             </ul>
             {sessions.length > limit ? (
               <button className="secondary" onClick={() => setLimit(limit + 30)}>
-                Ver más sesiones
+                {t('moreSessions')}
               </button>
             ) : null}
           </>
         ) : (
           <div className="history-empty">
             <Icon name="sound" size={25} />
-            <p>Aún no hay sesiones en este periodo.</p>
-            <span className="muted small">
-              Vuelve a Enfoque y dedica un momento a lo que importa.
-            </span>
+            <p>{t('emptyHistory')}</p>
+            <span className="muted small">{t('emptyHistoryBody')}</span>
           </div>
         )}
       </section>

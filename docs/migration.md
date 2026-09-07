@@ -1,4 +1,4 @@
-# Moving from Flask to version 2
+# Moving from Flask to Senda
 
 This is a product and architecture replacement, not an in-place SQL migration. Do not point the new app at an existing database: it has no database server connection at all.
 
@@ -15,3 +15,7 @@ The rebuild and local preview do not change any deployed service or existing ser
 The backup root contains `version: 2`, `settings`, `tasks` and `sessions`. Active timers are deliberately excluded, so importing a backup never silently starts a session or credits a partly finished one. Task IDs and session IDs must be unique; settings, text lengths, timestamps and durations are validated. Exports are personal data and should be stored accordingly.
 
 Session durations are milliseconds, completion timestamps are Unix epoch milliseconds, and titles are plain text. The CSV export is suitable for inspection and analysis; JSON is the roundtrip backup format.
+
+## Senda name and language update
+
+Existing version 2 users keep the same browser database and data. The language field is optional; older records and backups default to Spanish. New backups include the language choice. Product naming changes do not rename the GitHub repository, database, channel or service-worker cache namespace.

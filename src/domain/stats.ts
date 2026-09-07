@@ -1,3 +1,4 @@
+import { translate, type Language } from '../i18n/messages';
 import type { Session } from './model';
 export function dayKey(time: number): string {
   const d = new Date(time);
@@ -9,7 +10,7 @@ export function daysBefore(now: number, n: number): Date {
   d.setDate(d.getDate() - n);
   return d;
 }
-export function statistics(sessions: Session[], now: number) {
+export function statistics(sessions: Session[], now: number, language: Language = 'es') {
   const today = sessions.filter((s) => dayKey(s.completedAt) === dayKey(now));
   const active = new Set(sessions.map((s) => dayKey(s.completedAt)));
   let streak = 0;
@@ -23,7 +24,7 @@ export function statistics(sessions: Session[], now: number) {
     const key = dayKey(date.getTime());
     return {
       key,
-      label: date.toLocaleDateString('es', { weekday: 'short' }).replace('.', ''),
+      label: date.toLocaleDateString(language, { weekday: 'short' }).replace('.', ''),
       minutes: sessions
         .filter((s) => dayKey(s.completedAt) === key)
         .reduce((sum, s) => sum + s.duration / 60_000, 0),
@@ -38,11 +39,13 @@ export function statistics(sessions: Session[], now: number) {
     totalMinutes: sessions.reduce((sum, s) => sum + s.duration / 60_000, 0),
   };
 }
-export function csv(sessions: Session[]): string {
+export function csv(sessions: Session[], language: Language = 'es'): string {
   const safe = (text: string) =>
     `"${(/^[\s]*[=+@\-\t\r]/.test(text) ? "'" + text : text).replaceAll('"', '""')}"`;
   return (
-    '\uFEFFfecha_iso,tarea,minutos\r\n' +
+    '\uFEFF' +
+    translate(language, 'csvHeader') +
+    '\r\n' +
     sessions
       .map(
         (s) =>

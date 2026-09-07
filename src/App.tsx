@@ -1,26 +1,31 @@
+import { useI18n } from './i18n/context';
 import { useEffect, useState } from 'react';
 import { useStore, dispatch, dismissCompletion, dismissError } from './store';
 import { Timer } from './components/Timer';
 import { Tasks } from './components/Tasks';
 import { Metrics, Progress } from './components/Progress';
 import { Settings } from './components/Settings';
+import { LanguageSwitch } from './components/LanguageSwitch';
+import { errorText } from './i18n/messages';
 import { Icon } from './components/Icon';
-import { clockText, remaining, MODE_LABELS, type Timer as TimerState } from './domain/model';
+import { clockText, remaining, type Timer as TimerState } from './domain/model';
 function DocumentTitle({ timer }: { timer: TimerState }) {
+  const { t, language } = useI18n();
   useEffect(() => {
     const update = () => {
       document.title =
         timer.status === 'idle'
-          ? 'pomodoro. — Una cosa a la vez'
-          : `${clockText(remaining(timer, Date.now()))} · ${MODE_LABELS[timer.mode]} — pomodoro.`;
+          ? `Senda — ${t('title')}`
+          : `${clockText(remaining(timer, Date.now()))} · ${t(`mode.${timer.mode}`)} — Senda`;
     };
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [timer]);
+  }, [timer, language, t]);
   return null;
 }
 function RunningNotice({ onReturn }: { onReturn: () => void }) {
+  const { t } = useI18n();
   const { state } = useStore();
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -32,12 +37,13 @@ function RunningNotice({ onReturn }: { onReturn: () => void }) {
     <button className="running-notice" onClick={onReturn}>
       <span className="small-dot" />
       {clockText(remaining(state.timer, now))} ·{' '}
-      {state.timer.status === 'paused' ? 'Sesión pausada' : 'Tu sesión sigue en marcha'}
+      {state.timer.status === 'paused' ? t('pausedNotice') : t('runningNotice')}
       <Icon name="arrow" size={16} />
     </button>
   );
 }
 export default function App() {
+  const { t, language } = useI18n();
   const { state, error, completion } = useStore();
   const [page, setPage] = useState<'focus' | 'progress'>(
     location.hash === '#progreso' ? 'progress' : 'focus',
@@ -55,17 +61,14 @@ export default function App() {
   if (!state)
     return (
       <main className="loading-state">
-        <span className="brand">pomodoro.</span>
-        <h1>{error ? 'Un momento.' : 'Haciendo espacio…'}</h1>
-        <p>{error ?? 'Preparando tu espacio de enfoque.'}</p>
+        <span className="brand">senda.</span>
+        <h1>{error ? t('wait') : t('loadingTitle')}</h1>
+        <p>{error ? errorText(language, error) : t('loading')}</p>
         {error ? (
           <>
-            <p className="muted">
-              Necesitamos almacenamiento local para guardar tus sesiones. Revisa los permisos del
-              navegador o el espacio disponible.
-            </p>
+            <p className="muted">{t('storageHelp')}</p>
             <button className="primary" onClick={() => void dispatch({ type: 'settle' })}>
-              Volver a intentar
+              {t('tryAgain')}
             </button>
           </>
         ) : null}
@@ -84,36 +87,39 @@ export default function App() {
           main?.focus();
         }}
       >
-        Saltar al contenido
+        {t('skip')}
       </a>
       <header className="app-header">
-        <a className="brand" href="#enfoque" aria-label="Pomodoro, inicio">
-          pomodoro.
+        <a className="brand" href="#enfoque" aria-label={t('home')}>
+          senda.
         </a>
-        <nav aria-label="Navegación principal">
+        <nav aria-label={t('navigation')}>
           <a href="#enfoque" aria-current={page === 'focus' ? 'page' : undefined}>
-            Enfoque
+            {t('focus')}
           </a>
           <a href="#progreso" aria-current={page === 'progress' ? 'page' : undefined}>
-            Progreso
+            {t('progress')}
           </a>
         </nav>
-        <button
-          className="settings-button secondary"
-          aria-label="Ajustes"
-          onClick={() => setSettings(true)}
-        >
-          <Icon name="settings" size={20} />
-          <span>Ajustes</span>
-        </button>
+        <div className="header-tools">
+          <LanguageSwitch />
+          <button
+            className="settings-button secondary"
+            aria-label={t('settings')}
+            onClick={() => setSettings(true)}
+          >
+            <Icon name="settings" size={20} />
+            <span>{t('settings')}</span>
+          </button>
+        </div>
       </header>
       {error ? (
         <div className="error-banner" role="alert">
-          <p>{error}</p>
+          <p>{errorText(language, error)}</p>
           <button className="text-button" onClick={() => void dispatch()}>
-            Reintentar
+            {t('retry')}
           </button>
-          <button className="icon-button" aria-label="Cerrar aviso" onClick={dismissError}>
+          <button className="icon-button" aria-label={t('closeNotice')} onClick={dismissError}>
             <Icon name="close" />
           </button>
         </div>
@@ -121,7 +127,7 @@ export default function App() {
       {completion ? (
         <div className="completion-banner" role="status">
           <Icon name="check" />
-          <p>{completion}</p>
+          <p>{t(completion)}</p>
           <button
             className="text-button"
             onClick={() => {
@@ -129,12 +135,12 @@ export default function App() {
               dismissCompletion();
             }}
           >
-            Volver al reloj
+            {t('backToTimer')}
             <Icon name="arrow" size={17} />
           </button>
           <button
             className="icon-button"
-            aria-label="Cerrar aviso de sesión"
+            aria-label={t('closeCompletion')}
             onClick={dismissCompletion}
           >
             <Icon name="close" />
@@ -156,9 +162,9 @@ export default function App() {
         </>
       )}
       <footer className="app-footer">
-        <span>Menos ruido. Más espacio.</span>
+        <span>{t('footer')}</span>
         <span>
-          Guardado en este dispositivo <span className="status-dot" aria-hidden="true" />
+          {t('saved')} <span className="status-dot" aria-hidden="true" />
         </span>
       </footer>
       {settings ? <Settings state={state} onClose={() => setSettings(false)} /> : null}

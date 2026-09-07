@@ -1,4 +1,6 @@
+import { UserError } from '../i18n/messages';
 import { initialState, reduce, type Command, type State } from './model';
+// Keep the original storage identity so the Senda rebrand preserves existing data.
 export const DATABASE_NAME = 'pomodoro-focus-v2';
 export function openDatabase(name = DATABASE_NAME): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -9,8 +11,7 @@ export function openDatabase(name = DATABASE_NAME): Promise<IDBDatabase> {
       resolve(request.result);
     };
     request.onerror = () => reject(request.error);
-    request.onblocked = () =>
-      reject(new Error('Cierra las otras pestañas de Pomodoro y vuelve a intentarlo.'));
+    request.onblocked = () => reject(new UserError('storageBlocked'));
   });
 }
 /** Read/modify/write stays inside a single transaction, including across tabs. */
@@ -28,8 +29,7 @@ export function transaction(
     request.onsuccess = () => {
       try {
         const current: State = request.result ?? initialState();
-        if (current.version !== 2)
-          throw new Error('Esta versión de los datos necesita una versión más reciente de la app.');
+        if (current.version !== 2) throw new UserError('newerData');
         const state = command ? reduce(current, command, now) : current;
         result = {
           state,
@@ -47,8 +47,7 @@ export function transaction(
       }
     };
     tx.oncomplete = () => resolve(result);
-    tx.onabort = () =>
-      reject(cause ?? tx.error ?? new Error('No se han podido guardar los cambios.'));
+    tx.onabort = () => reject(cause ?? tx.error ?? new UserError('storageError'));
     tx.onerror = () => {
       cause ??= tx.error;
     };

@@ -1,3 +1,4 @@
+import { UserError, type Language } from '../i18n/messages';
 export type Mode = 'focus' | 'short' | 'long';
 export type Settings = { focus: number; short: number; long: number; goal: number; sound: boolean };
 export type Task = {
@@ -20,6 +21,7 @@ export type Timer = {
 };
 export type State = {
   version: 2;
+  language?: Language;
   revision: number;
   settings: Settings;
   tasks: Task[];
@@ -29,11 +31,6 @@ export type State = {
   cycle: number;
 };
 export const DEFAULT_SETTINGS: Settings = { focus: 25, short: 5, long: 15, goal: 4, sound: true };
-export const MODE_LABELS: Record<Mode, string> = {
-  focus: 'Enfoque',
-  short: 'Pausa corta',
-  long: 'Pausa larga',
-};
 export function freshTimer(mode: Mode, settings: Settings, id = crypto.randomUUID()): Timer {
   return {
     id,
@@ -49,6 +46,7 @@ export function freshTimer(mode: Mode, settings: Settings, id = crypto.randomUUI
 export function initialState(): State {
   return {
     version: 2,
+    language: 'es',
     revision: 0,
     settings: { ...DEFAULT_SETTINGS },
     tasks: [],
@@ -74,6 +72,7 @@ export function clockText(milliseconds: number): string {
     .padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 }
 export type Command =
+  | { type: 'language'; language: Language }
   | { type: 'toggle' }
   | { type: 'settle' }
   | { type: 'reset' }
@@ -88,12 +87,11 @@ export type Command =
 
 function title(value: string): string {
   const clean = value.trim();
-  if (!clean || clean.length > 160)
-    throw new Error('Escribe una tarea de entre 1 y 160 caracteres.');
+  if (!clean || clean.length > 160) throw new UserError('invalidTitle');
   return clean;
 }
 export function validateSettings(input: unknown): Settings {
-  if (!input || typeof input !== 'object') throw new Error('Ajustes no válidos.');
+  if (!input || typeof input !== 'object') throw new UserError('invalidSettings');
   const s = input as Settings;
   for (const [key, max] of [
     ['focus', 180],
@@ -102,9 +100,9 @@ export function validateSettings(input: unknown): Settings {
     ['goal', 16],
   ] as const) {
     if (!Number.isInteger(s[key]) || s[key] < 1 || s[key] > max)
-      throw new Error(`Revisa ${key}: debe estar entre 1 y ${max}.`);
+      throw new UserError('settingRange', { field: key, max });
   }
-  if (typeof s.sound !== 'boolean') throw new Error('Ajustes de sonido no válidos.');
+  if (typeof s.sound !== 'boolean') throw new UserError('invalidSound');
   return { focus: s.focus, short: s.short, long: s.long, goal: s.goal, sound: s.sound };
 }
 
@@ -142,6 +140,11 @@ export function reduce(state: State, command: Command, now: number): State {
   if (command.type === 'settle') return state;
   let next = { ...state, revision: state.revision + 1 };
   switch (command.type) {
+    case 'language':
+      if (command.language !== 'es' && command.language !== 'en')
+        throw new UserError('invalidLanguage');
+      next.language = command.language;
+      break;
     case 'toggle': {
       const t = state.timer;
       if (t.status === 'running')
@@ -166,12 +169,11 @@ export function reduce(state: State, command: Command, now: number): State {
       break;
     case 'select':
       if (command.id && !state.tasks.some((t) => t.id === command.id && !t.done))
-        throw new Error('Esta tarea ya no está disponible.');
+        throw new UserError('unavailableTask');
       next.selectedTask = command.id;
       break;
     case 'add':
-      if (state.tasks.length >= 500)
-        throw new Error('Has llegado a 500 tareas. Elimina alguna para añadir otra.');
+      if (state.tasks.length >= 500) throw new UserError('taskLimit');
       next.tasks = [
         ...state.tasks,
         { id: command.id, title: title(command.title), done: false, sessions: 0, createdAt: now },
@@ -197,7 +199,7 @@ export function reduce(state: State, command: Command, now: number): State {
         state.timer.status !== 'idle' &&
         ['focus', 'short', 'long'].some((k) => settings[k as Mode] !== state.settings[k as Mode])
       )
-        throw new Error('Termina o reinicia la sesión antes de cambiar su duración.');
+        throw new UserError('durationLocked');
       next.settings = settings;
       if (state.timer.status === 'idle') next.timer = freshTimer(state.timer.mode, settings);
       break;
@@ -206,6 +208,7 @@ export function reduce(state: State, command: Command, now: number): State {
       next = {
         ...initialState(),
         revision: next.revision,
+        language: command.data.language ?? 'es',
         settings: command.data.settings,
         tasks: command.data.tasks,
         sessions: command.data.sessions,
@@ -217,24 +220,31 @@ export function reduce(state: State, command: Command, now: number): State {
   return next;
 }
 
-export type Backup = { version: 2; settings: Settings; tasks: Task[]; sessions: Session[] };
+export type Backup = {
+  version: 2;
+  language?: Language;
+  settings: Settings;
+  tasks: Task[];
+  sessions: Session[];
+};
 export function parseBackup(text: string): Backup {
-  if (text.length > 5_000_000) throw new Error('La copia supera el límite de 5 MB.');
+  if (text.length > 5_000_000) throw new UserError('backupSize');
   let data: Backup;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('El archivo no contiene JSON válido.');
+    throw new UserError('invalidJson');
   }
   if (!data || data.version !== 2 || !Array.isArray(data.tasks) || !Array.isArray(data.sessions))
-    throw new Error('No es una copia de Pomodoro versión 2.');
-  if (data.tasks.length > 500 || data.sessions.length > 25_000)
-    throw new Error('La copia contiene demasiados registros.');
+    throw new UserError('invalidBackup');
+  if (data.tasks.length > 500 || data.sessions.length > 25_000) throw new UserError('backupLimit');
+  if (data.language !== undefined && data.language !== 'es' && data.language !== 'en')
+    throw new UserError('invalidLanguage');
   const settings = validateSettings(data.settings);
   const unique = new Set<string>();
   const validId = (id: unknown) => {
     if (typeof id !== 'string' || !/^[\w-]{1,80}$/.test(id) || unique.has(id))
-      throw new Error('La copia contiene identificadores repetidos o no válidos.');
+      throw new UserError('invalidIds');
     unique.add(id);
     return id;
   };
@@ -249,7 +259,7 @@ export function parseBackup(text: string): Backup {
       !Number.isSafeInteger(t.sessions) ||
       t.sessions < 0
     )
-      throw new Error('La copia contiene una tarea no válida.');
+      throw new UserError('invalidTask');
     return {
       id: validId(t.id),
       title: title(t.title),
@@ -269,7 +279,7 @@ export function parseBackup(text: string): Backup {
       s.duration > 180 * 60_000 ||
       s.duration % 60_000 !== 0
     )
-      throw new Error('La copia contiene una sesión no válida.');
+      throw new UserError('invalidSession');
     return {
       id: validId(s.id),
       taskTitle: s.taskTitle,
@@ -277,5 +287,5 @@ export function parseBackup(text: string): Backup {
       duration: s.duration,
     };
   });
-  return { version: 2, settings, tasks, sessions };
+  return { version: 2, language: data.language ?? 'es', settings, tasks, sessions };
 }

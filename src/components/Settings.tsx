@@ -1,3 +1,5 @@
+import { errorText, UserError, type MessageKey } from '../i18n/messages';
+import { useI18n } from '../i18n/context';
 import { useRef, useState } from 'react';
 import type { Backup, State } from '../domain/model';
 import { parseBackup } from '../domain/model';
@@ -8,35 +10,31 @@ import { download } from './Progress';
 import { Dialog } from './Dialog';
 import { Icon } from './Icon';
 export function Settings({ state, onClose }: { state: State; onClose: () => void }) {
+  const { t, language } = useI18n();
   const [draft, setDraft] = useState(state.settings);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<UserError | null>(null);
   const [restore, setRestore] = useState<Backup | null>(null);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<MessageKey | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const active = state.timer.status !== 'idle';
   return (
-    <Dialog title="Encuentra tu ritmo." onClose={onClose} wide>
-      <p className="dialog-copy">
-        Un poco de estructura. Todo el espacio para hacerlo a tu manera.
-      </p>
+    <Dialog title={t('settingsTitle')} onClose={onClose} wide>
+      <p className="dialog-copy">{t('settingsSubtitle')}</p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
           if (await dispatch({ type: 'settings', settings: draft })) onClose();
-          else
-            setError(
-              'No se pudieron guardar los ajustes. Comprueba los valores y el estado de la sesión.',
-            );
+          else setError(new UserError('saveSettingsError'));
         }}
       >
         <fieldset disabled={active}>
-          <legend>Duración de las sesiones</legend>
+          <legend>{t('durations')}</legend>
           <div className="duration-fields">
             {(
               [
-                ['focus', 'Enfoque', 180],
-                ['short', 'Pausa corta', 60],
-                ['long', 'Pausa larga', 90],
+                ['focus', t('focus'), 180],
+                ['short', t('mode.short'), 60],
+                ['long', t('mode.long'), 90],
               ] as const
             ).map(([key, label, max]) => (
               <label key={key}>
@@ -57,18 +55,14 @@ export function Settings({ state, onClose }: { state: State; onClose: () => void
             ))}
           </div>
         </fieldset>
-        <p className="small muted">
-          {active
-            ? 'Reinicia o termina la sesión para cambiar las duraciones.'
-            : 'Después de cuatro enfoques, te proponemos una pausa larga.'}
-        </p>
+        <p className="small muted">{active ? t('activeDurations') : t('longBreakHint')}</p>
         <label className="setting-row">
           <span>
-            <strong>Objetivo diario</strong>
-            <small>Una orientación, no una obligación.</small>
+            <strong>{t('dailyGoal')}</strong>
+            <small>{t('goalHint')}</small>
           </span>
           <input
-            aria-label="Objetivo diario"
+            aria-label={t('dailyGoal')}
             className="goal-input"
             type="number"
             min="1"
@@ -81,8 +75,8 @@ export function Settings({ state, onClose }: { state: State; onClose: () => void
         </label>
         <label className="setting-row">
           <span>
-            <strong>Un sonido al terminar</strong>
-            <small>Un aviso suave para cambiar de ritmo.</small>
+            <strong>{t('sound')}</strong>
+            <small>{t('soundHint')}</small>
           </span>
           <input
             className="switch"
@@ -99,43 +93,38 @@ export function Settings({ state, onClose }: { state: State; onClose: () => void
         </label>
         <div className="setting-row">
           <span>
-            <strong>Avisos del navegador</strong>
-            <small>Se piden solo si los activas.</small>
+            <strong>{t('notifications')}</strong>
+            <small>{t('notificationsHint')}</small>
           </span>
           <button
             className="secondary compact"
             type="button"
             onClick={async () => {
               if (!('Notification' in window)) {
-                setNotice('Este navegador no admite estos avisos.');
+                setNotice('notificationsUnsupported');
                 return;
               }
               try {
                 const permission = await Notification.requestPermission();
                 setNotice(
-                  permission === 'granted'
-                    ? 'Avisos activados. Puedes desactivarlos en los ajustes del navegador.'
-                    : 'Avisos desactivados. El temporizador seguirá funcionando.',
+                  permission === 'granted' ? 'notificationsEnabled' : 'notificationsDisabled',
                 );
               } catch {
-                setNotice('No se han podido activar los avisos en este navegador.');
+                setNotice('notificationsFailed');
               }
             }}
           >
-            Activar avisos
+            {t('enableNotifications')}
           </button>
         </div>
         {notice ? (
           <p className="small muted" role="status">
-            {notice}
+            {t(notice)}
           </p>
         ) : null}
         <div className="backup-section">
-          <h3>Tus datos, contigo.</h3>
-          <p className="small muted">
-            Todo se guarda en este navegador y dispositivo. Exporta una copia antes de borrar sus
-            datos o cambiar de navegador. No hay sincronización en la nube.
-          </p>
+          <h3>{t('yourData')}</h3>
+          <p className="small muted">{t('dataExplanation')}</p>
           <div className="backup-actions">
             <button
               type="button"
@@ -145,6 +134,7 @@ export function Settings({ state, onClose }: { state: State; onClose: () => void
                   JSON.stringify(
                     {
                       version: 2,
+                      language: state.language ?? 'es',
                       settings: state.settings,
                       tasks: state.tasks,
                       sessions: state.sessions,
@@ -152,16 +142,16 @@ export function Settings({ state, onClose }: { state: State; onClose: () => void
                     null,
                     2,
                   ),
-                  `pomodoro-copia-${dayKey(Date.now())}.json`,
+                  `senda-${t('backupFile')}-${dayKey(Date.now())}.json`,
                   'application/json',
                 )
               }
             >
               <Icon name="download" size={16} />
-              Guardar copia
+              {t('saveBackup')}
             </button>
             <button type="button" className="text-button" onClick={() => fileRef.current?.click()}>
-              Restaurar copia
+              {t('restoreBackup')}
             </button>
             <input
               ref={fileRef}
@@ -169,17 +159,17 @@ export function Settings({ state, onClose }: { state: State; onClose: () => void
               accept=".json,application/json"
               className="sr-only"
               tabIndex={-1}
-              aria-label="Archivo de copia de seguridad"
+              aria-label={t('backupInput')}
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 e.target.value = '';
                 if (!file) return;
                 try {
-                  if (file.size > 5_000_000) throw new Error('La copia supera el límite de 5 MB.');
+                  if (file.size > 5_000_000) throw new UserError('backupSize');
                   setRestore(parseBackup(await file.text()));
-                  setError('');
+                  setError(null);
                 } catch (err) {
-                  setError(err instanceof Error ? err.message : 'No se ha podido leer la copia.');
+                  setError(err instanceof UserError ? err : new UserError('backupReadError'));
                 }
               }}
             />
@@ -187,26 +177,24 @@ export function Settings({ state, onClose }: { state: State; onClose: () => void
         </div>
         {error ? (
           <p className="form-error" role="alert">
-            {error}
+            {errorText(language, error)}
           </p>
         ) : null}
         <div className="dialog-actions">
           <button type="button" className="text-button" onClick={onClose}>
-            Cancelar
+            {t('cancel')}
           </button>
-          <button className="primary">Guardar ajustes</button>
+          <button className="primary">{t('saveSettings')}</button>
         </div>
       </form>
       {restore ? (
-        <Dialog title="¿Restaurar esta copia?" onClose={() => setRestore(null)}>
+        <Dialog title={t('restoreTitle')} onClose={() => setRestore(null)}>
           <p className="dialog-copy">
-            Se reemplazarán tus tareas, ajustes e historial por {restore.tasks.length} tareas y{' '}
-            {restore.sessions.length} sesiones de la copia. El temporizador se reiniciará. Guarda
-            una copia de tus datos actuales si quieres conservarlos.
+            {t('restoreBody', { tasks: restore.tasks.length, sessions: restore.sessions.length })}
           </p>
           <div className="dialog-actions">
             <button className="secondary" onClick={() => setRestore(null)}>
-              Cancelar
+              {t('cancel')}
             </button>
             <button
               className="primary"
@@ -217,7 +205,7 @@ export function Settings({ state, onClose }: { state: State; onClose: () => void
                 }
               }}
             >
-              Restaurar datos
+              {t('restoreData')}
             </button>
           </div>
         </Dialog>

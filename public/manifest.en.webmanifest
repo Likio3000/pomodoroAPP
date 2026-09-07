@@ -1,7 +1,7 @@
 {
-  "name": "Senda — Una cosa a la vez",
+  "name": "Senda \u2014 One thing at a time",
   "short_name": "Senda",
-  "lang": "es",
+  "lang": "en",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

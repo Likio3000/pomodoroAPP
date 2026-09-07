@@ -1,8 +1,8 @@
-# pomodoro.
+# Senda
 
-**Una cosa a la vez.** A quiet, local-first focus app with a Spanish interface. Plan a small task, give it your attention, take a break, and see where your time went.
+**Una cosa a la vez.** A quiet, local-first focus app in English and Spanish. Plan a small task, give it your attention, take a break, and see where your time went.
 
-Version 2 is a complete rebuild in React and TypeScript. It requires no account, server database, API key, analytics service, or model provider.
+Senda (formerly pomodoro.) is a complete rebuild in React and TypeScript. It requires no account, server database, API key, analytics service, or model provider.
 
 ## Run it
 
@@ -22,6 +22,7 @@ npm run preview
 
 ## What works
 
+- An ES / EN language switch in the header. The choice is saved on this device, synchronizes across tabs, and does not reset an active timer. Interface text, dates, accessibility labels, messages, notifications and CSV headers follow the selected language; your task titles stay as written.
 - Focus, short breaks and long breaks, with configurable durations. Every fourth completed focus offers a long break. The next session starts only when you choose.
 - Pause, resume and reload recovery. A running timer is calculated from a persisted deadline, rather than by subtracting one every second.
 - Tasks with selection, editing, completion and per-task session counts. A session retains its original task title even if the task is later edited or deleted.
@@ -48,6 +49,7 @@ src/domain/model.ts       Pure timer/task transitions and import validation
 src/domain/database.ts    Atomic IndexedDB read/modify/write operations
 src/domain/stats.ts       Local-day aggregation and CSV encoding
 src/store.ts              React subscription, tab synchronization, completion
+src/i18n/                 Typed English/Spanish messages and language context
 src/components/           Timer, tasks, progress, settings and dialog surfaces
 src/styles.css            Responsive component styling
 src/theme.css             Shared design tokens
@@ -62,7 +64,7 @@ The runtime dependencies are React and React DOM. No AI integration, chat UI, sp
 ```sh
 npm test          # Domain transitions, backup validation, concurrent persistence
 npm run build    # Strict TypeScript checking and production bundle
-npm run check    # Both checks; also runs in GitHub Actions
+npm run check    # All checks; also runs in GitHub Actions
 ```
 
 The persistence suite uses two IndexedDB connections to exercise simultaneous writes and completion. Timer tests advance explicit timestamps rather than waiting in real time. Calendar tests use local dates; running them with `TZ=Australia/Melbourne npm test` also covers a non-UTC environment.
@@ -76,6 +78,7 @@ Browser acceptance checklist:
 5. Export and restore a backup, including rejecting malformed files.
 6. Reload the production app offline after the service worker is ready.
 7. Check desktop and narrow mobile layouts, keyboard focus, dialogs and accessible names.
+8. Switch languages during a running and paused session, then reload; confirm the timer and language persist. Repeat offline and across tabs, including an open settings dialog with a validation error.
 
 Automated checks do not establish compatibility with every browser, operating system or assistive technology. Native notification delivery depends on browser permissions and platform support.
 
@@ -89,6 +92,6 @@ No deployment is performed by the check workflow. See [migration notes](docs/mig
 
 ## From the previous version
 
-The Flask application is preserved in Git history. The rebuild intentionally removes accounts, server-side leaderboards, AI chat, generated speech, model SDKs, personas and key configuration. Existing server databases are not opened, modified or deleted by this app. Version 2 does not automatically import legacy accounts or history; keep a separate export before retiring a version 1 deployment.
+The Flask application is preserved in Git history. The rebuild intentionally removes accounts, server-side leaderboards, AI chat, generated speech, model SDKs, personas and key configuration. Existing server databases are not opened, modified or deleted by this app. The Senda name and language update preserve existing version 2 browser data and accept its earlier JSON backups. Version 2 does not automatically import legacy Flask accounts or history; keep a separate export before retiring a version 1 deployment.
 
 Design direction and component rules: [design specification](docs/design.md). MIT licensed; see [LICENSE](LICENSE).

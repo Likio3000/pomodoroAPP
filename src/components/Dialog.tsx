@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n/context';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { Icon } from './Icon';
 export function Dialog({
@@ -11,6 +12,7 @@ export function Dialog({
   onClose: () => void;
   wide?: boolean;
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
   const heading = useId();
   useEffect(() => {
@@ -39,7 +41,7 @@ export function Dialog({
     >
       <div className="dialog-header">
         <h2 id={heading}>{title}</h2>
-        <button type="button" className="icon-button" aria-label="Cerrar" onClick={onClose}>
+        <button type="button" className="icon-button" aria-label={t('close')} onClick={onClose}>
           <Icon name="close" />
         </button>
       </div>
